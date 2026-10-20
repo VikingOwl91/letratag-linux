@@ -12,7 +12,7 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential ca-certificates git curl pkg-config \
-            libcups2-dev cups-client cups-ipp-utils poppler-utils qpdf util-linux iproute2 \
+            libcups2-dev cups-client cups-bsd cups-ipp-utils poppler-utils qpdf util-linux iproute2 \
             libavahi-client-dev libssl-dev libpng-dev libjpeg-dev zlib1g-dev libdbus-1-dev jq
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
