@@ -20,6 +20,45 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
+/// Conceptual job lifecycle. PAPPL exposes its own job states to IPP
+/// clients (pending, processing, completed, canceled, aborted); the states
+/// below describe the engine's view of one submitted job and how they map
+/// onto the durable journal.
+///
+/// - Accepted, Validated, Rendering and ReadyForTransmission happen before
+///   the journal exists. A failure there rejects the job without touching
+///   hardware (PAPPL reports it as aborted) and leaves no journal entry.
+/// - TransmissionStarted and OutcomeUncertain share the journal value
+///   "inflight": it is written before the first possible write and survives
+///   process restarts. Any outcome after that point is uncertain, blocks
+///   the queue, and is resolved only by an explicit operator decision.
+/// - TransmissionCompleted means every write was accepted by the host.
+///   On hardware this is transport completion, NOT proof of a physical
+///   label.
+/// - ConfirmedPrinted is deliberately unreachable on the LetraTag 200B:
+///   the printer reports success even with the lid open (phantom-success
+///   finding, docs/evidence/hardware-failure-cases-2026-10-20.md), so no
+///   status code proves physical output. Only the mock transport, whose
+///   completion is a test double, reaches it (journal value "completed").
+/// - FailedBeforeTransmission is the journal value "failed-safe": the
+///   transport failed before any write and the job can be resubmitted.
+/// - Cancelled: a client cancellation cannot retract an in-flight
+///   transmission; the journal stays inflight and the outcome stays
+///   uncertain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobState {
+    Accepted,
+    Validated,
+    Rendering,
+    ReadyForTransmission,
+    TransmissionStarted,
+    TransmissionCompleted,
+    ConfirmedPrinted,
+    FailedBeforeTransmission,
+    OutcomeUncertain,
+    Cancelled,
+}
+
 pub struct Engine {
     directory: PathBuf,
     capture: bool,
@@ -528,5 +567,71 @@ mod tests {
         // Two reads end the status phase (progress ack + terminal); the
         // linger drains further notifications before the disconnect.
         assert!(transport.status_reads() > 2);
+    }
+
+    #[tokio::test]
+    async fn disconnect_failure_after_transmission_is_uncertain() {
+        // All writes and the status phase succeeded, but the disconnect
+        // failed: the outcome cannot be confirmed, so it stays uncertain
+        // and the journal keeps blocking.
+        let dir = private_tempdir();
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        let mut transport = MockTransport::with_fault(MockFault::Disconnect);
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Modern, &mut transport, false)
+                .await,
+            Err(Error::Uncertain)
+        ));
+        assert!(!transport.writes().is_empty());
+        assert!(engine.is_blocked());
+        drop(engine);
+        assert!(Engine::new(dir.path(), false).unwrap().is_blocked());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn status_timeout_is_uncertain_and_never_retried() {
+        let dir = private_tempdir();
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        let mut transport = MockTransport::with_fault(MockFault::StatusTimeout);
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Modern, &mut transport, false)
+                .await,
+            Err(Error::Uncertain)
+        ));
+        assert!(!transport.writes().is_empty());
+        assert_eq!(transport.status_reads(), 0);
+        assert!(engine.is_blocked());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn blocked_write_is_uncertain_and_survives_restart() {
+        // Cancellation/timeout of an in-flight write: the blocked write is
+        // not recorded, the outcome is uncertain, and no replay happens
+        // after a restart.
+        let dir = private_tempdir();
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        let mut transport = MockTransport::with_fault(MockFault::WriteBlock(1));
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Modern, &mut transport, true)
+                .await,
+            Err(Error::Uncertain)
+        ));
+        assert_eq!(transport.writes().len(), 1); // header only
+        assert_eq!(transport.status_reads(), 0);
+        assert!(engine.is_blocked());
+        drop(engine);
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        assert!(engine.is_blocked());
+        let mut other = MockTransport::default();
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Modern, &mut other, false)
+                .await,
+            Err(Error::Blocked)
+        ));
+        assert!(other.writes().is_empty());
     }
 }
