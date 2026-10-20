@@ -1,0 +1,13 @@
+{
+  NAME "URF remains disabled until whole-document validation exists"
+  OPERATION Print-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR name requesting-user-name test
+  ATTR mimeMediaType document-format image/urf
+  FILE $filename
+  STATUS client-error-attributes-or-values-not-supported
+  EXPECT document-format IN-GROUP unsupported-attributes-tag WITH-VALUE image/urf
+}

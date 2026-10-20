@@ -1,0 +1,39 @@
+{
+  NAME "Unsupported orientation is rejected during Validate-Job"
+  OPERATION Validate-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR mimeMediaType document-format application/pdf
+  ATTR boolean ipp-attribute-fidelity true
+  GROUP job-attributes-tag
+  ATTR enum orientation-requested 3
+  STATUS client-error-attributes-or-values-not-supported
+}
+{
+  NAME "Unsupported scaling is rejected during Validate-Job"
+  OPERATION Validate-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR mimeMediaType document-format application/pdf
+  ATTR boolean ipp-attribute-fidelity true
+  GROUP job-attributes-tag
+  ATTR keyword print-scaling fit
+  STATUS client-error-attributes-or-values-not-supported
+}
+{
+  NAME "Multiple copies are rejected during Validate-Job"
+  OPERATION Validate-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR mimeMediaType document-format application/pdf
+  ATTR boolean ipp-attribute-fidelity true
+  GROUP job-attributes-tag
+  ATTR integer copies 2
+  STATUS client-error-attributes-or-values-not-supported
+}

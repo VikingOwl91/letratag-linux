@@ -1,0 +1,17 @@
+{
+  NAME "Local mock capabilities"
+  OPERATION Get-Printer-Attributes
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR keyword requested-attributes printer-name,document-format-supported,media-col-database,page-ranges-supported,orientation-requested-supported,print-scaling-supported,printer-is-accepting-jobs
+  STATUS successful-ok
+  EXPECT printer-name OF-TYPE name
+  EXPECT document-format-supported COUNT 1 WITH-VALUE application/pdf
+  EXPECT media-col-database OF-TYPE collection
+  EXPECT page-ranges-supported COUNT 1 WITH-VALUE false
+  EXPECT orientation-requested-supported COUNT 1 WITH-VALUE 7
+  EXPECT print-scaling-supported COUNT 1 WITH-VALUE none
+  EXPECT printer-is-accepting-jobs WITH-VALUE true
+}

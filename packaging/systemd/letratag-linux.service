@@ -1,0 +1,40 @@
+[Unit]
+Description=LetraTag local IPP development printer (MOCK only)
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=letratag-linux
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/letratag-linux
+ExecStart=/usr/bin/letratag-printer serve --state /var/lib/letratag-linux/journal --spool /var/lib/letratag-linux/spool --port 8631
+Restart=no
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=512M
+TasksMax=64
+CPUQuota=50%
+LimitFSIZE=8M
+TimeoutStopSec=65
+
+[Install]
+WantedBy=multi-user.target

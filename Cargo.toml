@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/letratag-protocol", "crates/letratag-render", "crates/letratag-transport", "crates/letratag-printer"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.98"
+
+[workspace.dependencies]
+letratag-protocol = { path = "crates/letratag-protocol" }
+letratag-render = { path = "crates/letratag-render" }
+letratag-transport = { path = "crates/letratag-transport" }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros", "io-util"] }
+async-trait = "0.1"
+proptest = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "unwind"

@@ -1,0 +1,17 @@
+{
+  NAME "Unsupported media must not silently fall back to a different length"
+  OPERATION Print-Job
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  ATTR name requesting-user-name test
+  ATTR mimeMediaType document-format application/pdf
+  ATTR boolean ipp-attribute-fidelity false
+  GROUP job-attributes-tag
+  ATTR keyword media custom_length_12x49mm
+  ATTR keyword print-scaling none
+  FILE $filename
+  STATUS client-error-attributes-or-values-not-supported
+  EXPECT media IN-GROUP unsupported-attributes-tag WITH-VALUE custom_length_12x49mm
+}

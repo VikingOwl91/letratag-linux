@@ -1,0 +1,9 @@
+{
+  NAME "An unknown named URI must not select the default printer"
+  OPERATION Get-Printer-Attributes
+  GROUP operation-attributes-tag
+  ATTR charset attributes-charset utf-8
+  ATTR language attributes-natural-language en
+  ATTR uri printer-uri $uri
+  STATUS client-error-not-found
+}

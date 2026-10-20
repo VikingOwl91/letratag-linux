@@ -1,0 +1,325 @@
+diff --git a/pappl/system.h b/pappl/system.h
+--- a/pappl/system.h
++++ b/pappl/system.h
+@@ -12,6 +12,7 @@
+ #  include "device.h"
+ #  include "subscription.h"
+ #  include "log.h"
++#  define PAPPL_DOCUMENT_POLICY_API 1
+ #  ifdef __cplusplus
+ extern "C" {
+ #  endif // __cplusplus
+@@ -205,6 +206,7 @@ extern void		papplSystemSetContact(pappl_system_t *system, pappl_contact_t *contact)
+ extern void		papplSystemSetDefaultPrinterID(pappl_system_t *system, int default_printer_id) _PAPPL_PUBLIC;
+ extern void		papplSystemSetDefaultPrintGroup(pappl_system_t *system, const char *value) _PAPPL_PUBLIC;
+ extern void		papplSystemSetDNSSDName(pappl_system_t *system, const char *value) _PAPPL_PUBLIC;
++extern bool		papplSystemSetDocumentPolicy(pappl_system_t *system, const char *format, size_t max_job_bytes) _PAPPL_PUBLIC;
+ extern void		papplSystemSetEventCallback(pappl_system_t *system, pappl_event_cb_t event_cb, void *event_data) _PAPPL_PUBLIC;
+ extern void		papplSystemSetFooterHTML(pappl_system_t *system, const char *html) _PAPPL_PUBLIC;
+ extern void		papplSystemSetGeoLocation(pappl_system_t *system, const char *value) _PAPPL_PUBLIC;
+diff --git a/pappl/system-private.h b/pappl/system-private.h
+--- a/pappl/system-private.h
++++ b/pappl/system-private.h
+@@ -99,6 +99,8 @@ struct _pappl_system_s
+   cups_array_t		*resources;		// Array of resources
+   cups_array_t		*localizations;		// Array of localizations
+   cups_array_t		*filters;		// Array of filters
++  char			*document_format;	// Owned opt-in document format
++  size_t		max_job_bytes;		// Document byte limit, zero for legacy
+   int			next_client;		// Next client number
+   cups_array_t		*printers;		// Array of printers
+   int			default_printer_id,	// Default printer-id
+diff --git a/pappl/system-accessors.c b/pappl/system-accessors.c
+--- a/pappl/system-accessors.c
++++ b/pappl/system-accessors.c
+@@ -1727,6 +1727,46 @@ papplSystemSetDNSSDName(
+ }
+ 
+ 
++//
++// 'papplSystemSetDocumentPolicy()' - Opt in to bounded, file-based IPP reception.
++//
++// Call during serialized setup, before creating printers or running the system.
++// The format is copied; failures leave the existing policy unchanged.
++//
++
++bool
++papplSystemSetDocumentPolicy(
++    pappl_system_t *system,
++    const char     *format,
++    size_t         max_job_bytes)
++{
++  const char *slash;
++  char       *copy;
++  size_t     length;
++
++  if (!system || !format || !max_job_bytes ||
++      (length = strnlen(format, 256)) == 256 ||
++      strspn(format, "abcdefghijklmnopqrstuvwxyz0123456789!#$&^_.+-/") != length ||
++      !(slash = strchr(format, '/')) || slash == format || !slash[1] ||
++      strchr(slash + 1, '/'))
++    return (false);
++
++  _papplRWLockWrite(system);
++  if (system->is_running || system->printers || !(copy = strdup(format)))
++  {
++    _papplRWUnlock(system);
++    return (false);
++  }
++
++  free(system->document_format);
++  system->document_format = copy;
++  system->max_job_bytes   = max_job_bytes;
++  _papplRWUnlock(system);
++
++  return (true);
++}
++
++
+ //
+ // 'papplSystemSetEventCallback()' - Set a callback for monitoring system events.
+ //
+diff --git a/pappl/system.c b/pappl/system.c
+--- a/pappl/system.c
++++ b/pappl/system.c
+@@ -306,6 +306,7 @@ papplSystemDelete(pappl_system_t *system)
+   free(system->auth_scheme);
+   free(system->auth_service);
+   free(system->admin_group);
++  free(system->document_format);
+   free(system->default_print_group);
+ 
+   if (system->log_fd >= 0 && system->log_fd != 2)
+diff --git a/pappl/printer-driver.c b/pappl/printer-driver.c
+--- a/pappl/printer-driver.c
++++ b/pappl/printer-driver.c
+@@ -189,6 +189,24 @@ papplPrinterSetDriverData(
+   ippDelete(printer->driver_attrs);
+   printer->driver_attrs = make_attrs(printer->system, printer, &printer->driver_data);
+ 
++  if (attrs && printer->system->document_format)
++  {
++    ipp_attribute_t *attr, *old;
++
++    for (attr = ippGetFirstAttribute(attrs); attr; attr = ippGetNextAttribute(attrs))
++    {
++      const char *name = ippGetName(attr);
++
++      if (!name)
++        continue;
++
++      while ((old = ippFindAttribute(printer->attrs, name, IPP_TAG_ZERO)) != NULL)
++        ippDeleteAttribute(printer->attrs, old);
++      while ((old = ippFindAttribute(printer->driver_attrs, name, IPP_TAG_ZERO)) != NULL)
++        ippDeleteAttribute(printer->driver_attrs, old);
++    }
++  }
++
+   if (attrs)
+     ippCopyAttributes(printer->driver_attrs, attrs, 0, NULL, NULL);
+ 
+@@ -461,6 +479,14 @@ make_attrs(
+ 
+ 
+   // document-format-supported
++  if (system->document_format)
++  {
++    preferred  = system->document_format;
++    num_values = 1;
++    svalues[0] = preferred;
++    goto document_formats;
++  }
++
+   num_values = 0;
+   svalues[num_values ++] = "application/octet-stream";
+   svalues[num_values ++] = "image/pwg-raster";
+@@ -489,6 +515,7 @@ make_attrs(
+     }
+   }
+ 
++  document_formats:
+   ippAddString(attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-preferred", NULL, preferred);
+ 
+   ippAddStrings(attrs, IPP_TAG_PRINTER, IPP_TAG_MIMETYPE, "document-format-supported", num_values, NULL, svalues);
+diff --git a/pappl/printer.c b/pappl/printer.c
+--- a/pappl/printer.c
++++ b/pappl/printer.c
+@@ -429,7 +429,7 @@ papplPrinterCreate(
+   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_TAG_URI, "device-uuid", NULL, uuid);
+ 
+   // document-format-default
+-  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-default", NULL, "application/octet-stream");
++  ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_MIMETYPE), "document-format-default", NULL, system->document_format ? system->document_format : "application/octet-stream");
+ 
+   // generated-natural-language-supported
+   ippAddString(printer->attrs, IPP_TAG_PRINTER, IPP_CONST_TAG(IPP_TAG_LANGUAGE), "generated-natural-language-supported", NULL, "en");
+diff --git a/pappl/printer-ipp.c b/pappl/printer-ipp.c
+--- a/pappl/printer-ipp.c
++++ b/pappl/printer-ipp.c
+@@ -74,7 +74,9 @@ _papplPrinterCopyAttributesNoLock(
+   _papplCopyAttributes(client->response, printer->driver_attrs, ra, IPP_TAG_ZERO, false);
+   _papplPrinterCopyStateNoLock(printer, IPP_TAG_PRINTER, client->response, client, ra);
+ 
+-  if (!ra || cupsArrayFind(ra, "copies-supported"))
++  if ((!ra || cupsArrayFind(ra, "copies-supported")) &&
++      (!printer->system->document_format ||
++       !ippFindAttribute(printer->driver_attrs, "copies-supported", IPP_TAG_ZERO)))
+   {
+     // Filter copies-supported value based on the document format...
+     // (no copy support for streaming raster formats)
+@@ -1915,7 +1917,7 @@ valid_job_attributes(
+   _papplRWLockRead(client->printer);
+ 
+   // Check the various job template attributes...
+-  exact = ippGetOperation(client->request) == IPP_OP_VALIDATE_JOB;
++  exact = client->system->document_format != NULL || ippGetOperation(client->request) == IPP_OP_VALIDATE_JOB;
+ 
+   if ((attr = ippFindAttribute(client->request, "ipp-attribute-fidelity", IPP_TAG_ZERO)) != NULL)
+   {
+@@ -1932,7 +1934,10 @@ valid_job_attributes(
+   if ((attr = ippFindAttribute(client->request, "copies", IPP_TAG_ZERO)) != NULL)
+   {
+-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 999)
++    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_INTEGER || ippGetInteger(attr, 0) < 1 || ippGetInteger(attr, 0) > 999 ||
++        (client->system->document_format &&
++         (supported = ippFindAttribute(client->printer->driver_attrs, "copies-supported", IPP_TAG_RANGE)) != NULL &&
++         !ippContainsInteger(supported, ippGetInteger(attr, 0))))
+     {
+       papplClientRespondIPPUnsupported(client, attr);
+       valid = false;
+     }
+@@ -2155,7 +2160,10 @@ valid_job_attributes(
+   if ((attr = ippFindAttribute(client->request, "orientation-requested", IPP_TAG_ZERO)) != NULL)
+   {
+-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM)
++    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_ENUM ||
++        (client->system->document_format &&
++         (supported = ippFindAttribute(client->printer->driver_attrs, "orientation-requested-supported", IPP_TAG_ENUM)) != NULL &&
++         !ippContainsInteger(supported, ippGetInteger(attr, 0))))
+     {
+       papplClientRespondIPPUnsupported(client, attr);
+       valid = false;
+     }
+@@ -2269,7 +2277,10 @@ valid_job_attributes(
+   if ((attr = ippFindAttribute(client->request, "print-scaling", IPP_TAG_ZERO)) != NULL)
+   {
+-    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD || !_papplScalingValue(ippGetString(attr, 0, NULL)))
++    if (ippGetCount(attr) != 1 || ippGetValueTag(attr) != IPP_TAG_KEYWORD || !_papplScalingValue(ippGetString(attr, 0, NULL)) ||
++        (client->system->document_format &&
++         (supported = ippFindAttribute(client->printer->driver_attrs, "print-scaling-supported", IPP_TAG_KEYWORD)) != NULL &&
++         !ippContainsString(supported, ippGetString(attr, 0, NULL))))
+     {
+       papplClientRespondIPPUnsupported(client, attr);
+       valid = false;
+     }
+diff --git a/pappl/system-printer.c b/pappl/system-printer.c
+--- a/pappl/system-printer.c
++++ b/pappl/system-printer.c
+@@ -156,6 +156,10 @@ papplSystemFindPrinter(
+ 
+     if (resource && !strncasecmp(printer->resource, resource, printer->resourcelen) && (!resource[printer->resourcelen] || resource[printer->resourcelen] == '/'))
+       break;
++    else if (resource && system->document_format &&
++             !strncmp(resource, "/printers/", 10) &&
++             !strcasecmp(resource + 10, printer->name))
++      break;
+     else if (printer->printer_id == printer_id)
+       break;
+     else if (device_uri && !strcmp(printer->device_uri, device_uri))
+diff --git a/pappl/job.c b/pappl/job.c
+--- a/pappl/job.c
++++ b/pappl/job.c
+@@ -83,6 +83,23 @@ _papplJobCreate(
+     return (NULL);
+   }
+ 
++  if (printer->system->document_format && printer->max_active_jobs > 0 &&
++      printer->max_completed_jobs >= 0)
++  {
++    size_t limit = (size_t)printer->max_active_jobs +
++                   (size_t)printer->max_completed_jobs;
++    size_t active = (size_t)cupsArrayGetCount(printer->active_jobs);
++
++    // Backpressure instead of deleting young jobs still referenced by clients.
++    if (limit > 0 &&
++        (active >= limit ||
++         (size_t)cupsArrayGetCount(printer->completed_jobs) >= limit - active))
++    {
++      _papplRWUnlock(printer);
++      return (NULL);
++    }
++  }
++
+   // Allocate and initialize the job object...
+   if ((job = calloc(1, sizeof(pappl_job_t))) == NULL)
+   {
+diff --git a/pappl/job-ipp.c b/pappl/job-ipp.c
+--- a/pappl/job-ipp.c
++++ b/pappl/job-ipp.c
+@@ -100,14 +100,22 @@ _papplJobCopyDocumentData(
+ {
+   char			filename[1024],	// Filename buffer
+ 			buffer[4096];	// Copy buffer
+-  ssize_t		bytes,		// Bytes read
+-			total = 0;	// Total bytes copied
++  ssize_t		bytes;		// Bytes read
++  size_t		total = 0;	// Total bytes copied
+   cups_array_t		*ra;		// Attributes to send in response
+ 
+ 
++  if (client->system->document_format &&
++      (!job->format || strcmp(job->format, client->system->document_format)))
++  {
++    papplClientRespondIPP(client, IPP_STATUS_ERROR_DOCUMENT_FORMAT_NOT_SUPPORTED, "Document format violates system policy.");
++    goto abort_job;
++  }
++
+   // If we have a PWG or Apple raster file, process it directly or return
+   // server-error-busy...
+-  if (!strcmp(job->format, "image/pwg-raster") || !strcmp(job->format, "image/urf"))
++  if (!client->system->document_format &&
++      (!strcmp(job->format, "image/pwg-raster") || !strcmp(job->format, "image/urf")))
+   {
+     _papplRWLockRead(job->printer);
+ 
+@@ -148,6 +156,16 @@ _papplJobCopyDocumentData(
+ 
+   while ((bytes = httpRead(client->http, buffer, sizeof(buffer))) > 0)
+   {
++    if (client->system->max_job_bytes &&
++        (size_t)bytes > client->system->max_job_bytes - total)
++    {
++      close(job->fd);
++      job->fd = -1;
++      unlink(filename);
++      papplClientRespondIPP(client, IPP_STATUS_ERROR_REQUEST_ENTITY, "Document exceeds system byte limit.");
++      goto abort_job;
++    }
++
+     if (write(job->fd, buffer, (size_t)bytes) < bytes)
+     {
+       int error = errno;		// Write error
+@@ -165,7 +183,10 @@ _papplJobCopyDocumentData(
+     total += (size_t)bytes;
+   }
+ 
+-  if (bytes < 0)
++  if (bytes < 0 ||
++      (client->system->document_format &&
++       (httpError(client->http) || httpGetRemaining(client->http) > 0 ||
++        httpGetState(client->http) == HTTP_STATE_POST_RECV)))
+   {
+     // Got an error while reading the print data, so abort this job.
+     close(job->fd);
+@@ -538,7 +559,10 @@ _papplJobValidateDocumentAttributes(
+   _papplRWLockRead(client->printer);
+ 
+-  if (op != IPP_OP_CREATE_JOB && (supported = ippFindAttribute(client->printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format))
++  if (op != IPP_OP_CREATE_JOB &&
++      ((client->system->document_format &&
++        (!format || strcmp(format, client->system->document_format))) ||
++       ((supported = ippFindAttribute(client->printer->attrs, "document-format-supported", IPP_TAG_MIMETYPE)) != NULL && !ippContainsString(supported, format))))
+   {
+     papplClientRespondIPPUnsupported(client, attr);
+     valid = false;
+   }

@@ -1,0 +1,14 @@
+# Build artifacts
+/target/
+/pkg/
+*.pkg.tar.*
+
+# Local research/build environment (vendored deps, PAPPL prefix, toolchain)
+/.research/
+
+# Test output (mock journals, packet captures, hardware diag logs)
+/test-output/
+
+# IDE files
+.idea/
+.vscode/

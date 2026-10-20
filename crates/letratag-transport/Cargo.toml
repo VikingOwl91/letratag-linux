@@ -1,0 +1,20 @@
+[package]
+name = "letratag-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = []
+ble = ["dep:bluer", "dep:futures-util"]
+
+[dependencies]
+async-trait.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+bluer = { version = "=0.17.4", optional = true, features = ["bluetoothd"] }
+futures-util = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

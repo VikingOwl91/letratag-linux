@@ -1,0 +1,10 @@
+[package]
+name = "letratag-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Bounded LetraTag LT-200B raster and wire protocol encoding"
+
+[dev-dependencies]
+proptest.workspace = true
