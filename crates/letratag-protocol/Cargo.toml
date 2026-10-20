@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "Bounded LetraTag LT-200B raster and wire protocol encoding"
+repository = "https://github.com/VikingOwl91/letratag-linux"
 
 [dev-dependencies]
 proptest.workspace = true

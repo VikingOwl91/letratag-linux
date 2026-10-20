@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "Bounded PNG and grayscale rendering for LetraTag rasters"
+repository = "https://github.com/VikingOwl91/letratag-linux"
 
 [dependencies]
 letratag-protocol.workspace = true

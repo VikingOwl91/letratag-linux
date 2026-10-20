@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "PAPPL/IPP print service and CLI for the DYMO LetraTag 200B (internal application crate)"
+repository = "https://github.com/VikingOwl91/letratag-linux"
 build = "build.rs"
 
 [features]
