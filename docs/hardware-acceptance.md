@@ -3,10 +3,13 @@
 Status: **first physical print achieved and operator-confirmed on
 2026-10-20** (attempt 7; see
 [evidence/hardware-attempt-7-2026-10-20-success.md](evidence/hardware-attempt-7-2026-10-20-success.md)).
-Terminal-status calibration, repeated-job validation, CUPS/BLE integration
-and the remaining checklist items are still open. Do not mark the checklist
-complete from this single success. No firmware updates, controller resets or
-undocumented persistent settings are permitted.
+The layout is recalibrated to the measured 160 dpi (2026-10-21) and the
+BlueZ transport is wired into the IPP serve path behind an explicit
+`--transport bluez` operator choice (2026-10-21). Terminal-status
+auto-completion, a hardware-backed system queue and the remaining checklist
+items are still open. Do not mark the checklist complete from the prints
+so far. No firmware updates, controller resets or undocumented persistent
+settings are permitted.
 
 ## Before connecting
 
@@ -63,7 +66,15 @@ a job is submitted. Record that as unsupported/unobserved, not success.
 Start with an asymmetric synthetic black-and-white PNG, about 40 feed columns
 by 30 content rows. Avoid an all-black block or an extremely short label.
 Render a preview and inspect its orientation and complete packet list first.
-Larger writes and automatic feed padding remain disabled until measured.
+
+Write size: `--chunk-mode auto` uses the hardware-validated capability from
+`<state>/printer-caps.conf` (244 bytes for the verified device, confirmed by
+three operator-checked prints) and otherwise falls back to the conservative
+20-byte limit. `--chunk-mode safe` forces 20 bytes; `--chunk-mode manual
+--max-write <bytes>` is explicit and experimental above the validated cap.
+The negotiated MTU never proves printer support; see
+[protocol.md](protocol.md) section 4. Automatic feed padding remains
+unimplemented.
 
 The experimental command requires both the BLE feature and an explicit flag:
 
@@ -282,26 +293,30 @@ Do not deliberately jam tape or interfere mechanically with the print head.
    possibly printed label. The existing journal is not cross-request
    idempotency, and mock completion is not a physical exactly-once guarantee.
 
-## Remaining acceptance criteria (2026-10-20)
+## Remaining acceptance criteria (updated 2026-10-21)
 
 Hardware bring-up status: first physical print achieved and
-operator-confirmed; repeatability and geometry measured (see the attempt
-records above). Still open before a hardware-backed system queue:
+operator-confirmed; repeatability and geometry measured; layout recalibrated
+to 160 dpi; the BlueZ transport is wired into the IPP serve path behind
+`--transport bluez`. Still open before a hardware-backed system queue:
 
 1. Terminal-status auto-completion policy: resolve the PRINTING-ack
    ambiguity (failure-case observations with fresh batteries, e.g. lid
    open), then decide whether a code-0 result marks the journal completed.
    Until then the hardware path stays operator-in-the-loop (uncertain
    outcome plus inflight journal).
-2. Layout recalibration: the development layout uses 200 dpi; the measured
-   pitch is ~160 dpi isotropic. The provisional PDF geometry (30-row
-   content area, 12 mm page) must be recalibrated before it is trusted.
-3. CUPS/PAPPL over BLE: the serve path is mock-only. Wiring
-   BluezTransport into the PAPPL serve path needs the completion policy
+2. ~~Layout recalibration~~ **Done 2026-10-21:** the layout uses the
+   measured 160 dpi isotropic pitch; PDF page geometry, IPP media
+   conversion and tests derive from it. Physical length still includes
+   the printer's ~3.4 mm lead-in, which the layout does not model.
+3. CUPS/PAPPL over BLE: the serve path accepts `--transport bluez` with an
+   explicit address; mock stays the default and there is no fallback.
+   Remaining before a hardware-backed system queue: the completion policy
    (item 1), device availability detection before accepting jobs,
    D-Bus/BlueZ permission checks for the non-root service user
-   (docs/security.md), the existing journal for duplicate prevention, and
-   separate operator approval for any system-wide CUPS change.
+   (docs/security.md), an end-to-end acceptance print through the serve
+   path (PDF → IPP/PAPPL → BLE), and separate operator approval for any
+   system-wide CUPS change.
 4. Host adapter stability: the Bluetooth adapter power-cycles every 60 s
    (blueman-applet polling plus USB autosuspend on the Realtek dongle, hci
    index churn). A hardware-backed queue needs a policy for this: pause
@@ -311,6 +326,8 @@ records above). Still open before a hardware-backed system queue:
 5. Fault injection: disconnect during transfer, power-off mid-job,
    lid/cassette conditions with fresh batteries, and scheduler
    resubmission behavior (the journal is not cross-request idempotency).
+   Engine-level disconnect/status-timeout/cancellation paths are covered by
+   deterministic mock tests (2026-10-21).
 6. The systemd template in packaging/ is not live-tested.
 
 ## Acceptance record

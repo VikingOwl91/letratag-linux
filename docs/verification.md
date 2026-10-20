@@ -58,6 +58,33 @@ terminal-status completion policy is deliberately unchanged (hardware path
 still reports uncertain and keeps an inflight journal) until calibrated
 with repeated jobs and failure cases.
 
+### Addendum 2026-10-21 (BLE serve path, chunk sizing, 160 dpi layout)
+
+After wiring the BlueZ transport into the IPP serve path
+(`serve --transport bluez --address <MAC>`, mock stays the default, no
+fallback), adding adaptive chunk sizing (`auto`/`safe`/`manual` with
+`effective_write_limit = min(transport, validated printer cap, protocol)`
+and a per-address validated-caps file), documenting the job lifecycle with
+recovery regression tests, and recalibrating the PDF layout from the
+provisional 200 dpi to the measured 160 dpi, the gates were re-run on the
+final state (commits `6c75613`..`eb2ba45`):
+
+* Default workspace: 67 tests passed, zero failed.
+* All features: 81 tests passed, zero failed.
+* Clippy, all targets/features with `-D warnings`: passed.
+* Rustfmt: passed.
+* Debug and release all-feature workspace builds: passed.
+* Dependency license inventory: passed.
+* The loopback IPP mock suite passed again. All four independently
+  decoded captures now have width 315 (50 mm at 160 dpi) and a 1288-byte
+  body with SHA256
+  `85a63e364d0efd3f141e01b2e477cabf059bcfaf82d4670507f5d463cd7d6c47`
+  (was width 394, body 1604 bytes at the 200 dpi layout).
+* CLI smoke checks: chunk-mode resolution errors (manual without
+  `--max-write`, `--max-write` with auto/safe, out-of-range sizes),
+  caps-file lookup and malformed-caps failure, and the per-job
+  diagnostics parameters block through a live mock serve.
+
 ## Final isolated IPP results
 
 The independent executing verifier ran the full script successfully, exit 0:
@@ -158,10 +185,14 @@ claimed by local results.
 
 ## Remaining acceptance boundaries
 
-* Hardware communication, terminal-status sequencing, row orientation, effective
-  DPI, reachable rows, minimum reliable feed and actual cut length remain open.
-* The system endpoint is mock-only; the BLE implementation is compiled/tested
-  without contacting BlueZ. No physical BLE print was performed.
+* Terminal-status sequencing, auto-completion, reachable rows, minimum
+  reliable feed and actual cut length remain open. Row orientation and the
+  effective DPI are measured (2026-10-20); the physical lead-in (~3.4 mm)
+  is not modeled in the layout.
+* The serve path supports `--transport bluez` behind an explicit operator
+  choice; the mock remains the default. The serve-to-BLE path is wired and
+  unit-tested but has not yet produced a physical print; hardware BLE
+  evidence so far comes from the `hardware-send` path.
 * Direct PWG/URF input remains disabled until full-document validation is proven.
 * PAPPL internal shutdown races are not repaired by the process-lifetime FFI
   workaround. Sanitizer testing and upstream follow-up remain necessary.

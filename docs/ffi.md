@@ -3,7 +3,10 @@
 Public boundary: `crates/letratag-printer/native/adapter.h` and `src/ffi.rs`.
 No PAPPL/CUPS structure is reproduced in Rust. C contains no Bluetooth logic,
 DYMO commands, or bit packing. Media/resolution values come from Rust's
-explicitly uncalibrated profile; C only exposes them through PAPPL.
+160 dpi layout profile (measured on the device 2026-10-20); C only exposes
+them through PAPPL. The transport kind (mock, or BlueZ with an explicit
+address, chunk mode and validated capability) is chosen in Rust before
+`lt_serve` starts; C is transport-agnostic.
 
 ## Ownership and lifetimes
 

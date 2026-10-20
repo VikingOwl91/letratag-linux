@@ -102,8 +102,10 @@ installed printers.
 * Native PAPPL dependency; building the core without the feature remains possible.
 * No support for raw packets from arbitrary IPP clients.
 * Only one page and one copy per job. Multiple jobs are serialized.
-* 200 dpi, 30 active rows, and 12 × 10..200 mm are an uncalibrated development
-  profile, not confirmed hardware capabilities.
-* Physical status completion, feed, and GATT write size will be established in
-  Phase 4. Until then, the experimental BLE path deliberately reports no certain
-  print success and locks the journal after a transmission attempt.
+* ~~200 dpi~~ **160 dpi** (measured 2026-10-20, applied 2026-10-21), 30 active
+  rows, and 12 × 10..200 mm are a development profile; the length bounds are
+  software/test values, not confirmed hardware capabilities.
+* Physical status completion, feed, and GATT write size were established in
+  Phase 4 (chunk sizing 2026-10-21). The experimental BLE path deliberately
+  reports no certain print success and locks the journal after a transmission
+  attempt; that conservative policy is unchanged.

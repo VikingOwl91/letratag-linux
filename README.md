@@ -6,11 +6,14 @@ No Python runtime, DYMO app, HomeOps, or Snipe-IT dependency.
 
 **Development status: first physical print achieved and operator-confirmed
 (2026-10-20, see [verification.md](docs/verification.md) and
-[hardware-acceptance.md](docs/hardware-acceptance.md)).** The IPP service is
-deliberately an explicitly named **mock destination**; the BLE transport is
-experimental and calibration is ongoing. This is not a production printer
-driver. See [verification.md](docs/verification.md) for the actual test
-status.
+[hardware-acceptance.md](docs/hardware-acceptance.md)).** The default IPP
+destination is deliberately an explicitly named **mock destination**; the
+BlueZ transport is wired into the same serve path as an explicit,
+operator-selected option (`--transport bluez`). The layout is calibrated to
+the measured 160 dpi. The completion policy stays conservative: the printer
+reports success even with the lid open, so no job is ever auto-confirmed as
+physically printed. This is not a production printer driver. See
+[verification.md](docs/verification.md) for the actual test status.
 
 ## Architecture
 
@@ -37,7 +40,8 @@ letratag-render → letratag-protocol → letratag-transport
 
 [ADR](docs/adr/0001-print-system.md) · [Protocol and sources](docs/protocol.md) ·
 [FFI contract](docs/ffi.md) · [Security](docs/security.md) ·
-[Hardware acceptance](docs/hardware-acceptance.md) · [Licenses](docs/legal/README.md)
+[Hardware acceptance](docs/hardware-acceptance.md) ·
+[crates.io plan](docs/publishing.md) · [Licenses](docs/legal/README.md)
 
 ## Build
 
@@ -77,13 +81,50 @@ system libraries are not promised. Rust 1.98 is the declared minimum.
 # Fit a PNG/image proportionally into 400 feed columns and 30 active rows.
 cargo run --locked -p letratag-printer -- preview input.png preview.png --columns 400
 
-# Check provisional 50 × 12 mm PDF geometry without subsequent fit-to-page.
+# Check 50 × 12 mm PDF geometry (160 dpi layout) without subsequent fit-to-page.
 cargo run --locked -p letratag-printer -- preview label.pdf preview-pdf.png --pdf
 
 # Mock endpoint, 127.0.0.1:8631 only, no Bluetooth or mDNS advertisement.
 cargo run --locked -p letratag-printer --features pappl -- serve \
   --state "$PWD/test-output/local-journal" --spool "$PWD/test-output/local-spool" --port 8631
 ```
+
+## Real hardware over BlueZ
+
+The same serve path can target the physical printer. This is an explicit
+operator choice per invocation; there is never an implicit fallback from
+BlueZ to mock, and a BlueZ job that fails is reported as failed/aborted,
+never silently retried:
+
+```sh
+cargo run --locked -p letratag-printer --features pappl,ble -- serve \
+  --state "$PWD/test-output/hw-journal" --spool "$PWD/test-output/hw-spool" \
+  --port 8631 --transport bluez --address '90:E5:B1:49:DA:AE' \
+  --profile legacy --chunk-mode auto --diagnostics
+```
+
+Requirements and behavior:
+
+* The process user needs access to the system BlueZ D-Bus API (the same
+  permission `bluetoothctl` uses). No pairing is required; the connection
+  uses the explicit address. No persistent Bluetooth configuration is
+  changed.
+* Jobs are serialized: one transmission at a time, guarded by the engine
+  mutex and the journal file lock.
+* BLE write size is selected per `--chunk-mode` (see
+  [protocol.md](docs/protocol.md) section 4): `auto` uses a
+  hardware-validated capability recorded in `<state>/printer-caps.conf`
+  and otherwise falls back to the conservative 20-byte limit; `safe`
+  forces the conservative limit; `manual` takes `--max-write <bytes>`
+  (experimental above the validated capability).
+* Completion stays conservative: transport completion is not proof of a
+  physical label. Every hardware job ends uncertain and keeps an inflight
+  journal entry until the operator inspects the output and records a
+  decision. See [hardware-acceptance.md](docs/hardware-acceptance.md).
+* `--diagnostics` prints a content-free transport parameters block
+  (write mode, negotiated ATT MTU, usable GATT value, validated cap,
+  effective write size, chunk mode) plus per-write progress, raw status
+  bytes and timing. It never logs print contents.
 
 New state/spool directories are created with private permissions. Existing
 directories must have mode 0700. Do not point them at `/etc/cups` or existing
@@ -135,10 +176,12 @@ it is not installed or started automatically.
 * Variable length in the provisional IPP profile: 12 × 10..200 mm, default
   12 × 50 mm. `media-col` describes specific custom lengths. These limits are
   software/test profile values, not measured hardware capabilities.
-* 200 dpi layout resolution, 30 active rows out of 32 wire rows. Print height,
-  tape feed, and physical length are **not calibrated**.
-* PDF: one 12 mm page, at most 200 mm long, with a provisional centered
-  30-row content area. Nonwhite content outside this area causes an error.
+* 160 dpi layout resolution (measured on the device 2026-10-20: feed pitch
+  158.9 dpi, across ~160 dpi; matches the manufacturer's 160 DPI
+  specification), 30 active rows out of 32 wire rows. The printer adds
+  ~3.4 mm of lead-in beyond the raster's leading blank columns.
+* PDF: one 12 mm page, at most 200 mm long, with a centered 30-row
+  printable area. Nonwhite content outside this area causes an error.
   No silent cropping, stretching, or automatic fit-to-page.
 * IPP accepts PDF only. PWG Raster and URF, including truncated headers and
   incomplete pages, are rejected before any submission. They are not enabled

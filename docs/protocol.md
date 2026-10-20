@@ -4,9 +4,10 @@ System-input scope: the approved PDF-first IPP endpoint does not accept
 PWG Raster or URF. Raster layout information below describes the Rust device
 core and reference research, not enabled direct raster-stream ingestion.
 
-Research date: 2026-10-18. **No value has been hardware-verified in this project.**
-This is not a manufacturer specification. The implementation separates modern
-and legacy source profiles rather than silently merging contradictory findings.
+Research date: 2026-10-18, hardware-verified additions marked inline
+(2026-10-20/21). This is not a manufacturer specification. The
+implementation separates modern and legacy source profiles rather than
+silently merging contradictory findings.
 
 ## Sources and evidence levels
 
@@ -180,17 +181,53 @@ position `i >= 27`, index `i+1` is sent, skipping index 27. We allow at most
 protocol body length are different quantities. A normal ATT Write Command has
 three bytes of ATT overhead. Our packets additionally need an index and, at
 completion, two trailer bytes. Using `mtu-1` without this distinction is unsafe.
-`bluer 0.17.4` already applies `mtu_workaround` to AcquireWrite, reducing the
-reported MTU by five bytes. The transport provides the length actually accepted
-by its writer, additionally capped at 20 until calibration. The encoder
-conservatively reserves three bytes in **every** chunk:
-`min(500, usable_value_len - 3)`.
+`bluer 0.17.4` already applies `mtu_workaround`, reducing the reported MTU by
+five bytes; the transport uses the length actually accepted by its writer and
+does not subtract ATT overhead twice. The encoder conservatively reserves
+three bytes in **every** chunk: `min(500, effective_write_len - 3)`.
 
-This conservative smaller chunk size is logically bounded but has not been
-validated on the printer. Oversized jobs are rejected in full before the first
-write. The 8000-column limit is our software limit and S1's canvas limit, not
-a guaranteed device capability. A small MTU further reduces the maximum
-transmittable label length.
+### Chunk-size selection (2026-10-21)
+
+The effective GATT write-value size is selected at connect time:
+
+```
+effective_write_limit = min(
+    transport_gatt_value_limit,   # bluer-reported usable value size
+    validated_printer_limit,      # hardware-confirmed, per address
+    implementation_limit,         # 503: 500 body + index + final magic
+)
+```
+
+Three modes (`--chunk-mode`, `letratag-transport::ChunkMode`):
+
+* **auto (default):** the validated printer capability from
+  `<state>/printer-caps.conf`, or the conservative ATT23-safe 20-byte limit
+  when no capability is recorded. The negotiated MTU alone never proves
+  printer support: on the verified LT200B BlueZ reports a characteristic MTU
+  of 500 (bluer usable value 495) while the validated, operator-confirmed
+  printer limit is 244 bytes.
+* **safe:** always the conservative 20-byte limit, or smaller if the
+  transport requires it.
+* **manual (`--max-write <bytes>`):** an explicitly configured size,
+  validated against the negotiated transport limit and the protocol bounds
+  9..=512. Values above the validated capability are reported as
+  **experimental** in diagnostics; an acknowledged ATT write is not
+  validation.
+
+Validated capabilities are recorded per device address in
+`<state>/printer-caps.conf` (`<address> <bytes>` per line, `#` comments).
+Only operator-confirmed limits belong there; nothing is promoted
+automatically, and a malformed file fails startup. Unknown values are
+reported as unknown in diagnostics, never invented. On the Write Request
+path (the verified LT200B TX characteristic offers only the `write` flag)
+BlueZ's MTU property is a characteristic capability, not the negotiated
+link MTU, so the negotiated ATT MTU is reported unknown; on the Write
+Command path (AcquireWrite) it is the AcquireWrite MTU.
+
+Oversized jobs are rejected in full before the first write. The
+8000-column limit is our software limit and S1's canvas limit, not a
+guaranteed device capability. A small write limit further reduces the
+maximum transmittable label length.
 
 ## 5. Body profiles and raster format
 
@@ -236,18 +273,18 @@ research report a different value of 160 dpi and anisotropic effects.
 **Measured on this device 2026-10-20 (attempt 7 plus calibration batch,
 operator-confirmed):** the dot pitch is ~160 dpi isotropic. Feed: 152 text
 columns = 24.3 mm = 158.9 dpi. Across: 16 text rows = 2.25-2.5 mm (2.54 mm
-expected at 160 dpi; within caliper precision). The 200 dpi value is only
-the explicitly named development layout resolution and is wrong for this
-device: content laid out at 200 dpi prints 1.25x longer than intended along
-the feed. A tape width of 12 mm is not the print height.
+expected at 160 dpi; within caliper precision). The earlier 200 dpi
+development layout resolution was wrong for this device: content laid out
+at 200 dpi printed 1.25x longer than intended along the feed. A tape width
+of 12 mm is not the print height.
 
-For the provisional PDF profile, 30 rows at 200 layout dpi yield a 3.81 mm
-content area; at the measured 160 dpi the same 30 rows are 4.76 mm. The
-layout value needs recalibration against the measured pitch before the PDF
-geometry is trusted. The remaining rows of the 12 mm page are discarded as
-unprintable margins only if they are white. Nonwhite content outside the
-area is rejected, not cropped or distorted. PDF and PWG Raster feed columns
-are not subsequently scaled to the content height.
+**Recalibrated 2026-10-21:** the PDF layout now uses the measured 160 dpi
+(`document::LAYOUT_DPI`). 30 rows at 160 dpi yield a 4.76 mm content area.
+The remaining rows of the 12 mm page are discarded as unprintable margins
+only if they are white. Nonwhite content outside the area is rejected, not
+cropped or distorted. PDF and PWG Raster feed columns are not subsequently
+scaled to the content height. The printer additionally advances ~3.4 mm of
+lead-in beyond the raster's leading blank columns (measured 2026-10-20).
 
 ## 7. Feed, margins, and completion
 

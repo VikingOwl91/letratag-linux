@@ -39,7 +39,8 @@ The service runs without root, additional capabilities, or Bluetooth controller
 access. BlueZ is accessed through the normal system D-Bus. Whether the future
 service user is authorized must be checked against the actual D-Bus/Polkit
 rules. No blanket policy relaxations or controller group assignments are
-installed. The prepared service is mock-only.
+installed. The default service configuration is mock-only; `--transport bluez`
+is an explicit per-invocation operator choice, never an implicit fallback.
 
 ## Limits
 
