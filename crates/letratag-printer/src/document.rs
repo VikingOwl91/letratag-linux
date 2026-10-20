@@ -8,6 +8,17 @@ use wait_timeout::ChildExt;
 
 pub const MAX_FILE: u64 = 8 * 1024 * 1024;
 
+/// Layout resolution used for PDF page geometry and IPP media conversion.
+/// Measured on the LT200B on 2026-10-20: feed pitch 158.9 dpi, across
+/// ~160 dpi, isotropic; matches the manufacturer's 160 DPI specification
+/// (docs/evidence/hardware-calibration-batch-2026-10-20.md).
+pub const LAYOUT_DPI: f64 = 160.0;
+
+/// Pixels for a millimeter length at the layout resolution.
+fn px(mm: f64) -> f64 {
+    mm * LAYOUT_DPI / 25.4
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("input file is not a bounded regular file")]
@@ -15,7 +26,7 @@ pub enum Error {
     #[error("PDF conversion failed or exceeded its resource limits")]
     Conversion,
     #[error(
-        "PDF requires exactly one 12-mm page, at most 200 mm long, with ink inside the provisional 30-row area"
+        "PDF requires exactly one 12-mm page, at most 200 mm long, with ink inside the centered 30-row printable area"
     )]
     Geometry,
     #[error("document I/O failed")]
@@ -118,7 +129,10 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
             "--",
         ])
         .arg("/usr/bin/pdftoppm")
-        .args(["-f", "1", "-l", "2", "-r", "200", "-gray", "-png"])
+        .args(["-f", "1", "-l", "2"])
+        .arg("-r")
+        .arg((LAYOUT_DPI as u32).to_string())
+        .args(["-gray", "-png"])
         .arg(&input)
         .arg(&prefix)
         .stdin(Stdio::null())
@@ -150,8 +164,14 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
         .into_dimensions()
         .map_err(|_| Error::Conversion)?;
     let (w, h) = (dims.0 as usize, dims.1 as usize);
-    let landscape = (94..=95).contains(&h) && (1..=1575).contains(&w);
-    let portrait = (94..=95).contains(&w) && (1..=1575).contains(&h);
+    // One 12 mm page, at most 200 mm long, rendered at the layout dpi.
+    // The 12 mm side allows one pixel of rounding at either end.
+    let page = px(12.0);
+    let page_lo = page.floor() as usize;
+    let page_hi = page.ceil() as usize;
+    let max_len = px(200.0).ceil() as usize;
+    let landscape = (page_lo..=page_hi).contains(&h) && (1..=max_len).contains(&w);
+    let portrait = (page_lo..=page_hi).contains(&w) && (1..=max_len).contains(&h);
     if !landscape && !portrait {
         return Err(Error::Geometry);
     }
