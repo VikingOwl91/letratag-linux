@@ -1,3 +1,4 @@
+pub mod caps;
 pub mod cups;
 pub mod document;
 pub mod engine;

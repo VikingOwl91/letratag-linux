@@ -22,9 +22,62 @@ impl From<ProfileChoice> for Profile {
     }
 }
 
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum TransportChoice {
+    /// Bounded in-process mock transport (safe default, no Bluetooth).
+    #[default]
+    Mock,
+    /// Real hardware over BlueZ (requires --address; never falls back).
+    Bluez,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+enum ChunkModeChoice {
+    /// Largest size permitted by the transport and a hardware-validated
+    /// printer capability; conservative 20 bytes when none is recorded.
+    Auto,
+    /// Always the conservative 20-byte limit, or smaller if the transport
+    /// requires it.
+    Safe,
+    /// Explicitly configured size (requires --max-write). Values above the
+    /// validated capability are experimental.
+    Manual,
+}
+
+/// Resolve --chunk-mode/--max-write into the transport chunk mode.
+/// --max-write alone implies manual; combining it with auto or safe is a
+/// configuration error, and manual without --max-write is incomplete.
+fn resolve_chunk_mode(
+    mode: Option<ChunkModeChoice>,
+    max_write: Option<usize>,
+) -> Result<letratag_transport::ChunkMode, String> {
+    use letratag_transport::ChunkMode;
+    let resolved = match (mode, max_write) {
+        (None, None) => ChunkMode::Auto,
+        (None, Some(value)) => ChunkMode::Manual(value),
+        (Some(ChunkModeChoice::Auto), None) => ChunkMode::Auto,
+        (Some(ChunkModeChoice::Safe), None) => ChunkMode::Safe,
+        (Some(ChunkModeChoice::Manual), Some(value)) => ChunkMode::Manual(value),
+        (Some(ChunkModeChoice::Manual), None) => {
+            return Err("--chunk-mode manual requires --max-write <bytes>".into());
+        }
+        (Some(_), Some(_)) => {
+            return Err("--max-write requires --chunk-mode manual".into());
+        }
+    };
+    if let ChunkMode::Manual(value) = resolved
+        && !(9..=512).contains(&value)
+    {
+        return Err(format!(
+            "--max-write {value} is outside the protocol bounds 9..=512"
+        ));
+    }
+    Ok(resolved)
+}
+
 #[derive(Parser)]
 #[command(
-    about = "Native LetraTag development driver. Hardware not yet validated.",
+    about = "Native LetraTag 200B driver. First physical print operator-confirmed 2026-10-20; completion policy stays conservative.",
     version
 )]
 struct Cli {
@@ -57,7 +110,8 @@ enum Commands {
         #[arg(long)]
         capture: bool,
     },
-    /// Local PAPPL endpoint. Always mock-only until hardware acceptance.
+    /// Local PAPPL endpoint. Mock transport by default; real hardware with
+    /// --transport bluez (explicit operator choice, no implicit fallback).
     #[cfg(feature = "pappl")]
     Serve {
         #[arg(long)]
@@ -68,6 +122,26 @@ enum Commands {
         port: u16,
         #[arg(long)]
         capture: bool,
+        /// Transport for submitted jobs.
+        #[arg(long, value_enum, default_value_t = TransportChoice::Mock)]
+        transport: TransportChoice,
+        /// Bluetooth address of the printer (required with --transport bluez).
+        #[arg(long)]
+        address: Option<String>,
+        /// Wire profile. Explicit operator choice; never switched automatically.
+        #[arg(long, value_enum, default_value_t = ProfileChoice::Modern)]
+        profile: ProfileChoice,
+        /// How the BLE print-chunk write size is selected (default: auto).
+        #[arg(long, value_enum)]
+        chunk_mode: Option<ChunkModeChoice>,
+        /// Maximum GATT write-value size in bytes; implies --chunk-mode
+        /// manual. Values above the validated capability are experimental.
+        #[arg(long)]
+        max_write: Option<usize>,
+        /// Content-free protocol diagnostics on stderr (transport parameters,
+        /// write progress, status bytes, timing). Never logs print contents.
+        #[arg(long)]
+        diagnostics: bool,
     },
     /// Print the CUPS integration settings and setup instructions.
     CupsSettings {
@@ -111,8 +185,12 @@ enum Commands {
         /// 4=19mm, 5=24mm. Best effort; the job runs regardless.
         #[arg(long)]
         set_cassette_type: Option<u8>,
-        /// Print-chunk value size cap in bytes (default 20, ATT23-safe).
-        /// Calibration only; larger writes stay disabled until measured.
+        /// How the print-chunk write size is selected (default: auto).
+        #[arg(long, value_enum)]
+        chunk_mode: Option<ChunkModeChoice>,
+        /// Maximum GATT write-value size in bytes; implies --chunk-mode
+        /// manual. Must be within 9..=512 and the negotiated transport
+        /// limit. Values above the validated capability are experimental.
         #[arg(long)]
         max_write: Option<usize>,
         /// Hardware calibration linger in seconds: after the status phase,
@@ -176,8 +254,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .open(output)?;
             f.write_all(&letratag_render::preview_png(&raster)?)?;
             println!(
-                "preview: {} columns x 32 protocol rows, geometry uncalibrated",
-                raster.width()
+                "preview: {} columns x 32 protocol rows, {} dpi layout",
+                raster.width(),
+                document::LAYOUT_DPI as u32
             );
         }
         Commands::Mock {
@@ -206,8 +285,48 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             spool,
             port,
             capture,
+            transport,
+            address,
+            profile,
+            chunk_mode,
+            max_write,
+            diagnostics,
         } => {
-            let app = letratag_printer::ffi::App::new(Engine::new(state, capture)?)?;
+            use letratag_printer::ffi::TransportKind;
+            let chunk_mode = resolve_chunk_mode(chunk_mode, max_write)?;
+            let engine = Engine::new(state.clone(), capture)?.with_diagnostics(diagnostics);
+            let kind = match transport {
+                TransportChoice::Mock => TransportKind::Mock,
+                TransportChoice::Bluez => {
+                    let address = address.ok_or("--transport bluez requires --address <MAC>")?;
+                    let printer_cap = letratag_printer::caps::lookup(&state, &address)
+                        .map_err(|e| e.to_string())?;
+                    TransportKind::Bluez {
+                        address,
+                        chunk_mode,
+                        printer_cap,
+                    }
+                }
+            };
+            if let Some(message) = kind.unsupported() {
+                return Err(message.into());
+            }
+            match &kind {
+                TransportKind::Mock => {
+                    eprintln!("serving mock transport on 127.0.0.1:{port} (no Bluetooth)");
+                }
+                TransportKind::Bluez {
+                    chunk_mode,
+                    printer_cap,
+                    ..
+                } => {
+                    let cap = printer_cap.map_or("unknown".to_string(), |cap| cap.to_string());
+                    eprintln!(
+                        "serving BlueZ transport on 127.0.0.1:{port}; chunk mode: {chunk_mode:?}, validated printer cap: {cap}"
+                    );
+                }
+            }
+            let app = letratag_printer::ffi::App::new(engine, kind, profile.into())?;
             letratag_printer::ffi::serve(app, &spool, port).map_err(std::io::Error::other)?;
         }
         Commands::CupsSettings { port } => {
@@ -238,16 +357,21 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             diagnostics,
             profile,
             set_cassette_type,
+            chunk_mode,
             max_write,
             linger_seconds,
         } => {
             if !acknowledge_unverified_hardware {
                 return Err("physical sends require explicit acknowledgment; first read docs/hardware-acceptance.md".into());
             }
+            let chunk_mode = resolve_chunk_mode(chunk_mode, max_write)?;
             let raster = load(&input, false, columns, false)?;
-            let mut transport =
-                letratag_transport::BluezTransport::new(&address)?.with_max_write(max_write);
-            let mut engine = Engine::new(state, false)?.with_diagnostics(diagnostics);
+            let mut engine = Engine::new(state.clone(), false)?.with_diagnostics(diagnostics);
+            let printer_cap =
+                letratag_printer::caps::lookup(&state, &address).map_err(|e| e.to_string())?;
+            let mut transport = letratag_transport::BluezTransport::new(&address)?
+                .with_chunk_mode(chunk_mode)
+                .with_printer_cap(printer_cap);
             if let Some(id) = set_cassette_type {
                 engine = engine
                     .with_short_command(Some(letratag_protocol::set_cassette_type_write(id)?));

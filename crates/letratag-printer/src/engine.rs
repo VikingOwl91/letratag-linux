@@ -142,7 +142,14 @@ impl Engine {
         let job = Job::new(raster, profile)?;
         let size = match tokio::time::timeout(Duration::from_secs(12), transport.connect()).await {
             Ok(Ok(size)) => size,
-            _ => {
+            result => {
+                // Transport errors are content-free; the job never started.
+                if diagnostics {
+                    eprintln!(
+                        "[diag] connect failed: {result:?} at {:?}",
+                        started.elapsed()
+                    );
+                }
                 let _ = tokio::time::timeout(Duration::from_secs(4), transport.disconnect()).await;
                 return Err(Error::SafeTransport);
             }
@@ -152,6 +159,9 @@ impl Engine {
                 "[diag] connected; usable value size {size} at {:?}",
                 started.elapsed()
             );
+            for line in transport.parameters().describe().lines() {
+                eprintln!("[diag] {line}");
+            }
         }
         if let Some(command) = &self.short_command {
             let result = tokio::time::timeout(

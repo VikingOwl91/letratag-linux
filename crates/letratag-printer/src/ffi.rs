@@ -1,42 +1,126 @@
 use crate::{document, engine::Engine};
 use letratag_protocol::{Profile, Raster};
-use letratag_transport::MockTransport;
+use letratag_transport::{ChunkMode, MockTransport};
 use std::ffi::{CString, OsStr, c_char, c_int, c_void};
 use std::os::unix::ffi::OsStrExt;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 use std::sync::Mutex;
 
+/// How submitted jobs reach a printer. Mock is the safe default; Bluez
+/// targets real hardware. There is never an implicit fallback from Bluez
+/// to mock: a requested Bluez transport either runs as Bluez or fails.
+pub enum TransportKind {
+    Mock,
+    Bluez {
+        address: String,
+        chunk_mode: ChunkMode,
+        /// Hardware-validated write capability recorded for this address.
+        printer_cap: Option<usize>,
+    },
+}
+
+impl TransportKind {
+    /// Error message when the requested transport is not compiled in.
+    #[cfg(feature = "ble")]
+    pub fn unsupported(&self) -> Option<&'static str> {
+        let _ = self;
+        None
+    }
+
+    #[cfg(not(feature = "ble"))]
+    pub fn unsupported(&self) -> Option<&'static str> {
+        match self {
+            TransportKind::Mock => None,
+            TransportKind::Bluez { .. } => {
+                Some("the ble feature is not compiled in; build with --features pappl,ble")
+            }
+        }
+    }
+}
+
 pub struct App {
     engine: Mutex<Engine>,
     runtime: tokio::runtime::Runtime,
+    transport: TransportKind,
+    profile: Profile,
 }
 
 impl App {
-    pub fn new(engine: Engine) -> std::io::Result<Self> {
+    pub fn new(
+        engine: Engine,
+        transport: TransportKind,
+        profile: Profile,
+    ) -> std::io::Result<Self> {
         Ok(Self {
             engine: Mutex::new(engine),
             runtime: tokio::runtime::Builder::new_multi_thread()
                 .worker_threads(1)
                 .enable_all()
                 .build()?,
+            transport,
+            profile,
         })
     }
     fn submit(&self, raster: &Raster) -> c_int {
         let Ok(mut engine) = self.engine.lock() else {
             return 1;
         };
-        // System integration deliberately stays mock-only before hardware acceptance.
+        // The engine mutex plus the journal lock serialize jobs; one owner
+        // at a time, no concurrent transmissions to the same printer.
+        match &self.transport {
+            TransportKind::Mock => i32::from(
+                self.runtime
+                    .block_on(engine.print(
+                        raster,
+                        self.profile,
+                        &mut MockTransport::default(),
+                        false,
+                    ))
+                    .is_err(),
+            ),
+            TransportKind::Bluez {
+                address,
+                chunk_mode,
+                printer_cap,
+            } => self.submit_bluez(&mut engine, raster, address, *chunk_mode, *printer_cap),
+        }
+    }
+
+    #[cfg(feature = "ble")]
+    fn submit_bluez(
+        &self,
+        engine: &mut Engine,
+        raster: &Raster,
+        address: &str,
+        chunk_mode: ChunkMode,
+        printer_cap: Option<usize>,
+    ) -> c_int {
+        let Ok(transport) = letratag_transport::BluezTransport::new(address) else {
+            return 1;
+        };
+        let mut transport = transport
+            .with_chunk_mode(chunk_mode)
+            .with_printer_cap(printer_cap);
+        // The hardware path: bounded timeouts, no retries, uncertain
+        // outcome persisted in the journal (see engine::JobState).
         i32::from(
             self.runtime
-                .block_on(engine.print(
-                    raster,
-                    Profile::Modern,
-                    &mut MockTransport::default(),
-                    false,
-                ))
+                .block_on(engine.print(raster, self.profile, &mut transport, true))
                 .is_err(),
         )
+    }
+
+    #[cfg(not(feature = "ble"))]
+    fn submit_bluez(
+        &self,
+        _engine: &mut Engine,
+        _raster: &Raster,
+        _address: &str,
+        _chunk_mode: ChunkMode,
+        _printer_cap: Option<usize>,
+    ) -> c_int {
+        1
     }
 }
 
@@ -66,9 +150,18 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
     }
     crate::engine::private_directory(spool).map_err(|_| "spool directory must be private")?;
     let spool = CString::new(spool.as_os_str().as_bytes()).map_err(|_| "invalid spool path")?;
-    let model = CString::new("DYMO LetraTag 200B MOCK - uncalibrated 200-dpi layout").unwrap();
+    let model = match &app.transport {
+        TransportKind::Mock => CString::new(format!(
+            "DYMO LetraTag 200B MOCK - uncalibrated {}-dpi layout",
+            document::LAYOUT_DPI as u32
+        ))
+        .unwrap(),
+        TransportKind::Bluez { .. } => {
+            CString::new("DYMO LetraTag 200B (BLE, experimental)").unwrap()
+        }
+    };
     let config = Config {
-        dpi: 200,
+        dpi: document::LAYOUT_DPI as u32,
         media_width: 1200,
         min_length: 1000,
         max_length: 20000,
@@ -124,7 +217,7 @@ pub unsafe extern "C" fn lt_rs_pdf(
         let Ok(raster) = document::pdf(Path::new(OsStr::from_bytes(bytes))) else {
             return 1;
         };
-        let requested = (f64::from(media_length) * 200.0 / 2540.0).round() as usize;
+        let requested = (f64::from(media_length) * document::LAYOUT_DPI / 2540.0).round() as usize;
         if raster.width().abs_diff(requested) > 1 {
             return 1;
         }
