@@ -43,13 +43,14 @@ pub struct BluezTransport {
     writer: Option<TxChannel>,
     short_command: Option<Characteristic>,
     notifications: Option<Notifications>,
-    /// ATT-level usable value size (bluer mtu_workaround applied), without
-    /// the print-chunk calibration cap.
-    mtu: usize,
+    /// Usable GATT value size reported by bluer (mtu_workaround applied).
+    gatt_limit: usize,
+    /// Effective print-chunk write limit selected at connect time:
+    /// min(transport, validated printer capability, protocol bound).
     usable: usize,
-    /// Print-chunk value size cap. Default 20 (ATT23-safe) until the
-    /// printer's larger-value support is calibrated on hardware.
-    max_write: Option<usize>,
+    chunk_mode: ChunkMode,
+    printer_cap: Option<usize>,
+    parameters: TransportParameters,
     attempted: bool,
     writes: usize,
     failed: bool,
@@ -64,18 +65,29 @@ impl BluezTransport {
             writer: None,
             short_command: None,
             notifications: None,
-            mtu: 0,
+            gatt_limit: 0,
             usable: 0,
-            max_write: None,
+            chunk_mode: ChunkMode::Auto,
+            printer_cap: None,
+            parameters: TransportParameters::unknown(),
             attempted: false,
             writes: 0,
             failed: false,
         })
     }
 
-    /// Override the print-chunk value size cap (calibration only).
-    pub fn with_max_write(mut self, max_write: Option<usize>) -> Self {
-        self.max_write = max_write;
+    /// Select how the print-chunk write size is chosen at connect time.
+    /// Default: Auto.
+    pub fn with_chunk_mode(mut self, mode: ChunkMode) -> Self {
+        self.chunk_mode = mode;
+        self
+    }
+
+    /// Record a hardware-validated printer write capability in bytes per
+    /// GATT value. Only operator-confirmed limits belong here: an
+    /// acknowledged ATT write does not prove the printer processed the job.
+    pub fn with_printer_cap(mut self, cap: Option<usize>) -> Self {
+        self.printer_cap = cap;
         self
     }
 
@@ -185,11 +197,8 @@ impl BluezTransport {
             .await
             .map_err(|_| Error::Connect)?;
         self.notifications = Some(Box::pin(notifications));
-        // Print chunks are capped at ATT23-safe 20 until the printer's
-        // larger-value support is calibrated on hardware; the short-command
-        // channel uses the uncapped ATT-level mtu.
-        let cap = self.max_write.unwrap_or(20);
-        let (writer, mtu, usable) = match mode {
+        // (writer, usable GATT value size, negotiated ATT MTU if known, mode)
+        let (writer, gatt_limit, att_mtu, write_mode) = match mode {
             TxMode::Command => {
                 let writer = characteristics[tx]
                     .write_io()
@@ -197,25 +206,49 @@ impl BluezTransport {
                     .map_err(|_| Error::Connect)?;
                 // bluer 0.17.4 remote::write_io applies mtu_workaround(raw_mtu),
                 // subtracting five, and CharacteristicWriter::send bounds by that
-                // value. Do not subtract ATT overhead again.
-                let mtu = writer.mtu();
-                (TxChannel::Command(writer), mtu, mtu.min(cap))
+                // value. Do not subtract ATT overhead again. AcquireWrite reports
+                // the negotiated ATT MTU, so adding the workaround back yields it.
+                let limit = writer.mtu();
+                (
+                    TxChannel::Command(writer),
+                    limit,
+                    Some(limit + 5),
+                    "Command",
+                )
             }
             TxMode::Request => {
                 // Verified on LT200B hardware (2026-10-20): the TX characteristic
                 // offers only the "write" flag, so print data goes through
                 // WriteValue with an ATT Write Request. The MTU property getter
-                // applies the same bluer mtu_workaround.
+                // applies the same bluer mtu_workaround. On the LT200B BlueZ
+                // reports 500 here: a characteristic capability, not the
+                // negotiated link MTU, so att_mtu stays unknown rather than
+                // being invented.
                 let characteristic = characteristics[tx].clone();
-                let mtu = characteristic.mtu().await.map_err(|_| Error::Profile)?;
-                (TxChannel::Request(characteristic), mtu, mtu.min(cap))
+                let limit = characteristic.mtu().await.map_err(|_| Error::Profile)?;
+                (TxChannel::Request(characteristic), limit, None, "Request")
             }
         };
-        if usable == 0 {
+        if gatt_limit == 0 {
             return Err(Error::Profile);
         }
+        // The effective write size is the minimum of the transport limit, the
+        // validated printer capability and the protocol bound. The negotiated
+        // MTU alone never proves printer support. The short-command channel
+        // uses the uncapped ATT-level gatt_limit.
+        let usable = effective_write_limit(gatt_limit, self.printer_cap, self.chunk_mode)?;
+        self.parameters = TransportParameters {
+            transport: Some("BlueZ"),
+            write_mode: Some(write_mode),
+            att_mtu,
+            gatt_value_limit: Some(gatt_limit),
+            printer_cap: self.printer_cap,
+            effective_write: Some(usable),
+            chunk_mode: Some(chunk_mode_label(self.chunk_mode)),
+            experimental: experimental(self.chunk_mode, self.printer_cap),
+        };
         self.writer = Some(writer);
-        self.mtu = mtu;
+        self.gatt_limit = gatt_limit;
         self.usable = usable;
         Ok(usable)
     }
@@ -275,9 +308,9 @@ impl Transport for BluezTransport {
             return Err(Error::InvalidState);
         };
         // The short command is a fixed-size non-print write (23 bytes for
-        // set-cassette-type); bound it by the ATT-level MTU, not by the
-        // print-chunk calibration cap.
-        if data.len() > self.mtu {
+        // set-cassette-type); bound it by the ATT-level GATT value size, not
+        // by the print-chunk limit.
+        if data.len() > self.gatt_limit {
             return Err(Error::ValueTooLarge);
         }
         if self.writes == MAX_WRITES {
@@ -313,6 +346,7 @@ impl Transport for BluezTransport {
         self.writer = None;
         self.notifications = None;
         self.usable = 0;
+        self.gatt_limit = 0;
         // Retain the handle until success, including when the caller cancels.
         let Some(device) = self.device.clone() else {
             return Ok(());
@@ -325,6 +359,28 @@ impl Transport for BluezTransport {
             self.device = None;
         }
         result
+    }
+
+    fn parameters(&self) -> TransportParameters {
+        self.parameters.clone()
+    }
+}
+
+/// Diagnostics label for the configured chunk mode.
+fn chunk_mode_label(mode: ChunkMode) -> &'static str {
+    match mode {
+        ChunkMode::Auto => "auto",
+        ChunkMode::Safe => "safe",
+        ChunkMode::Manual(_) => "manual",
+    }
+}
+
+/// A manual size above the validated capability (or with no recorded
+/// capability at all) is experimental, not validated.
+fn experimental(mode: ChunkMode, printer_cap: Option<usize>) -> bool {
+    match mode {
+        ChunkMode::Manual(value) => printer_cap.is_none_or(|cap| value > cap),
+        _ => false,
     }
 }
 
@@ -425,6 +481,38 @@ mod tests {
             BluezTransport::new("invalid"),
             Err(Error::InvalidAddress)
         ));
+    }
+
+    #[test]
+    fn construction_defaults_to_auto_without_a_validated_cap() {
+        let transport = BluezTransport::new("00:11:22:33:44:55").unwrap();
+        assert_eq!(transport.chunk_mode, ChunkMode::Auto);
+        assert_eq!(transport.printer_cap, None);
+        assert_eq!(transport.parameters(), TransportParameters::unknown());
+        let configured = transport
+            .with_chunk_mode(ChunkMode::Manual(244))
+            .with_printer_cap(Some(244));
+        assert_eq!(configured.chunk_mode, ChunkMode::Manual(244));
+        assert_eq!(configured.printer_cap, Some(244));
+    }
+
+    #[test]
+    fn chunk_mode_labels_match_the_cli_names() {
+        assert_eq!(chunk_mode_label(ChunkMode::Auto), "auto");
+        assert_eq!(chunk_mode_label(ChunkMode::Safe), "safe");
+        assert_eq!(chunk_mode_label(ChunkMode::Manual(20)), "manual");
+    }
+
+    #[test]
+    fn only_manual_sizes_above_the_validated_cap_are_experimental() {
+        assert!(!experimental(ChunkMode::Auto, Some(244)));
+        assert!(!experimental(ChunkMode::Safe, None));
+        assert!(!experimental(ChunkMode::Manual(244), Some(244)));
+        assert!(!experimental(ChunkMode::Manual(128), Some(244)));
+        assert!(experimental(ChunkMode::Manual(245), Some(244)));
+        // No recorded capability: any manual size is unvalidated.
+        assert!(experimental(ChunkMode::Manual(20), None));
+        assert!(experimental(ChunkMode::Manual(244), None));
     }
 
     #[test]
