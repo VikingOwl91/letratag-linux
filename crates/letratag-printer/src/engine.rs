@@ -466,7 +466,7 @@ mod tests {
         assert!(Engine::new(dir.path(), false).is_err());
     }
     #[tokio::test]
-    async fn uncalibrated_hardware_policy_never_claims_completion() {
+    async fn hardware_policy_never_claims_completion() {
         let dir = private_tempdir();
         let mut engine = Engine::new(dir.path(), false).unwrap();
         let mut transport = MockTransport::default();

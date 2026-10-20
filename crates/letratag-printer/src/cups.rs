@@ -26,11 +26,13 @@ pub fn settings_report(port: u16) -> String {
          \x20 One page and one copy per job; no automatic retries.\n\
          \n\
          Experimental BLE transport:\n\
-         \x20 The serve path is mock-only today. BLE wiring (serve\n\
-         \x20 --transport bluez --address <MAC>) is in preparation. The\n\
-         \x20 hardware path is operator-in-the-loop: every job leaves an\n\
-         \x20 inflight journal until the operator resolves it\n\
-         \x20 (docs/security.md, docs/hardware-acceptance.md).\n\
+         \x20 The serve path defaults to the mock transport; real hardware is\n\
+         \x20 an explicit per-invocation choice (build with --features\n\
+         \x20 pappl,ble, then serve --transport bluez --address <MAC>).\n\
+         \x20 There is no implicit fallback. The hardware path is\n\
+         \x20 operator-in-the-loop: every job leaves an inflight journal\n\
+         \x20 until the operator resolves it (docs/security.md,\n\
+         \x20 docs/hardware-acceptance.md).\n\
          \n\
          System-wide queue (requires separate operator approval; NOT installed):\n\
          \x20 1. Start the local endpoint, e.g. via the systemd template in\n\

@@ -152,7 +152,7 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
     let spool = CString::new(spool.as_os_str().as_bytes()).map_err(|_| "invalid spool path")?;
     let model = match &app.transport {
         TransportKind::Mock => CString::new(format!(
-            "DYMO LetraTag 200B MOCK - uncalibrated {}-dpi layout",
+            "DYMO LetraTag 200B MOCK - {}-dpi layout",
             document::LAYOUT_DPI as u32
         ))
         .unwrap(),
