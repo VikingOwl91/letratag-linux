@@ -1,12 +1,25 @@
 # crates.io publication
 
 Status: **published 2026-10-21.** The three library crates are on crates.io
-at version 0.1.0 (operator-approved; see the publication record below).
-`letratag-printer` is deliberately not published.
+(`letratag-protocol` and `letratag-render` at 0.1.0 and 0.1.1,
+`letratag-transport` at 0.1.1; operator-approved, see the publication record
+below). `letratag-printer` is deliberately not published.
 
 Assessment date: 2026-10-21, workspace at `95bf1f0`; publication executed
 from `c811dd7` (clean tree, git-ignored `.env` token, no credentials
 committed).
+
+**Pending 0.1.2 of `letratag-transport` (prepared 2026-10-21, not
+published).** The published 0.1.1 predates the btleplug backend
+(`7b7cdd0`), so the crate content no longer matches the published version
+and a new version is required for the next publication. The manifest now
+carries version 0.1.2 (independent of the workspace version), the
+description and README mention the btleplug backend, and `keywords` and
+`categories` are set. `letratag-protocol` and `letratag-render` are
+unchanged since 0.1.1 and stay at the workspace version, which matches what
+is published; the path dependency requirement in the root manifest points at
+the published 0.1.1. Publishing 0.1.2 requires the operator's explicit
+authorization and a crates.io token.
 
 ## Crate-by-crate assessment
 
@@ -14,7 +27,7 @@ committed).
 |---|---|---|---|
 | `letratag-protocol` | yes, 2026-10-21 | 0.1.0, **0.1.1** | <https://crates.io/crates/letratag-protocol> |
 | `letratag-render` | yes, 2026-10-21 | 0.1.0, **0.1.1** | <https://crates.io/crates/letratag-render> |
-| `letratag-transport` | yes, 2026-10-21 | **0.1.1** (0.1.0 was never published; see correction) | <https://crates.io/crates/letratag-transport> |
+| `letratag-transport` | yes, 2026-10-21 | **0.1.1** (0.1.0 was never published; see correction), 0.1.2 prepared, not published | <https://crates.io/crates/letratag-transport> |
 | `letratag-printer` | **no** | — | the `pappl` feature builds against the pinned, patched PAPPL via pkg-config (`scripts/build-pappl.sh`, private prefix); a crates.io build cannot reproduce that, so the published crate would not build its main feature from source |
 
 **Correction 2026-10-21:** an earlier version of this document (and the
@@ -34,13 +47,14 @@ the repository, not to a registry package. Keep it unpublished.
 
 * **Names:** `letratag-protocol`, `letratag-render`, `letratag-transport` are
   available on crates.io (verified by the index lookup during the dry runs).
-* **License:** MIT for all crates (`license.workspace`). The packaged
-  archives do not embed the LICENSE text (it lives at the repository root,
-  outside the crate directories). Optional improvement before publishing:
-  copy `LICENSE` into each published crate.
-* **Metadata:** all four manifests now carry `description` and
-  `repository`. `documentation`/`homepage` are unset; docs.rs links appear
-  automatically after the first publish.
+* **License:** MIT for all crates (`license.workspace`). The three published
+  crates carry a copy of the license text, checked against the repository
+  root file by `scripts/check-licenses.sh` in CI.
+* **Metadata:** all four manifests carry `description` and `repository`.
+  `documentation`/`homepage` are unset; docs.rs links appear automatically
+  after the first publish. The three published crates carry `keywords` and
+  `categories`; `letratag-transport` additionally states the btleplug
+  backend in its description and README.
 * **Dependencies:** `letratag-render` depends on `letratag-protocol`;
   `letratag-transport` is independent of the other two. External
   dependencies are pinned by `Cargo.lock` in the repository;

@@ -1,10 +1,11 @@
 # letratag-transport
 
 Bounded transports for DYMO LetraTag printers: an in-process mock transport
-for tests and CI, and a real BlueZ transport (behind the `ble` feature) that
-talks to the physical printer over D-Bus. Both share one asynchronous
-interface with bounded timeouts, adaptive GATT chunk sizing, and conservative
-semantics: a successful transport job is never evidence of physical printing.
+for tests and CI, and two real-hardware transports behind feature flags, the
+BlueZ transport (`ble`, over D-Bus) and the btleplug transport
+(`btleplug`). All of them share one asynchronous interface with bounded
+timeouts, adaptive GATT chunk sizing, and conservative semantics: a
+successful transport job is never evidence of physical printing.
 
 [![crates.io](https://img.shields.io/crates/v/letratag-transport)](https://crates.io/crates/letratag-transport)
 [![repository](https://img.shields.io/badge/repository-GitHub-blue)](https://github.com/VikingOwl91/letratag-linux)
@@ -17,19 +18,27 @@ Mock transport only (safe default, no Bluetooth):
 
 ```toml
 [dependencies]
-letratag-transport = "0.1.1"
+letratag-transport = "0.1.2"
 ```
 
 Real hardware over BlueZ:
 
 ```toml
 [dependencies]
-letratag-transport = { version = "0.1.1", features = ["ble"] }
+letratag-transport = { version = "0.1.2", features = ["ble"] }
+```
+
+Real hardware over btleplug:
+
+```toml
+[dependencies]
+letratag-transport = { version = "0.1.2", features = ["btleplug"] }
 ```
 
 The `ble` feature needs the D-Bus development library at build time and access
 to the system BlueZ D-Bus API at runtime (the same permission `bluetoothctl`
-uses). No pairing is required or performed.
+uses). No pairing is required or performed. The `btleplug` feature needs the
+btleplug stack and the platform's native Bluetooth backend.
 
 ## Examples
 
@@ -165,6 +174,28 @@ assert_eq!(transport.parameters().effective_write, None);
 # fn main() {}
 ```
 
+### Constructing the btleplug transport (feature `btleplug`)
+
+The same interface and the same semantics over the btleplug stack. BlueZ
+remains the default real-hardware backend of the application; both were
+compared on real hardware and produced identical payloads, GATT operations
+and write mode.
+
+```rust
+# #[cfg(feature = "btleplug")]
+# fn main() {
+use letratag_transport::{BtleplugTransport, ChunkMode, Transport};
+
+let transport = BtleplugTransport::new("90:E5:B1:49:DA:AE")
+    .unwrap()
+    .with_chunk_mode(ChunkMode::Auto)
+    .with_printer_cap(Some(244));
+assert_eq!(transport.parameters().effective_write, None);
+# }
+# #[cfg(not(feature = "btleplug"))]
+# fn main() {}
+```
+
 ## API overview
 
 | Item | Purpose |
@@ -177,7 +208,8 @@ assert_eq!(transport.parameters().effective_write, None);
 | `TransportParameters` | Connection-time parameters for diagnostics: `unknown`, `describe` |
 | `CONSERVATIVE_WRITE_LIMIT`, `PROTOCOL_WRITE_LIMIT` | 20-byte ATT23-safe fallback; 503-byte protocol implementation bound |
 | `Error` | Bounded, structured transport errors (timeouts, profile, write, discovery, write-size validation) |
-| `BluezTransport` (feature `ble`) | Real hardware: `new`, `with_chunk_mode`, `with_printer_cap`, `discover` |
+| `BluezTransport` (feature `ble`) | Real hardware over BlueZ/D-Bus: `new`, `with_chunk_mode`, `with_printer_cap`, `discover` |
+| `BtleplugTransport` (feature `btleplug`) | Real hardware over btleplug: `new`, `with_chunk_mode`, `with_printer_cap` |
 | `DiscoveredDevice`, `resolve_device` (feature `ble`) | Discovery candidates; device resolution with bounded LE discovery for absent devices |
 
 ## Semantics and limitations

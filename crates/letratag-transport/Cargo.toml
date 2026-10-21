@@ -1,12 +1,17 @@
 [package]
 name = "letratag-transport"
-version.workspace = true
+# Versioned separately from the workspace: the published 0.1.1 predates the
+# btleplug backend, so this crate needs its own next version. The other
+# crates stay at the workspace version, which matches what is published.
+version = "0.1.2"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Bounded mock and BlueZ transports for LetraTag printers, with adaptive GATT chunk sizing"
+description = "Bounded mock, BlueZ and btleplug transports for LetraTag printers, with adaptive GATT chunk sizing"
 repository = "https://github.com/VikingOwl91/letratag-linux"
 readme = "README.md"
+keywords = ["bluetooth", "label", "printer", "letratag", "ble"]
+categories = ["hardware-support", "network-programming"]
 
 [features]
 default = []
