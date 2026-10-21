@@ -136,7 +136,7 @@ in-memory blocked flag.
 
 No hardware print is part of installation or the tests above. Only after
 operator approval, stop the mock server and start the same PAPPL service
-with the established BlueZ options and the printer's own private journal:
+with the established BLE options and the printer's own private journal:
 
 ```sh
 target/debug/letratag-printer serve \
@@ -145,7 +145,13 @@ target/debug/letratag-printer serve \
   --profile legacy --chunk-mode auto --diagnostics
 ```
 
-The build needs `pappl,ble`; the service user needs BlueZ/D-Bus permission.
+`--transport bluez` is the established backend (build with `pappl,ble`).
+`--transport btleplug` selects the alternative btleplug backend (build with
+`pappl,btleplug`); see the
+[migration plan](btleplug-migration-plan.md) and the
+[backend comparison](evidence/backend-comparison-2026-10-21.md). Both
+backends use the same wire protocol, write mode and chunking. The service
+user needs BlueZ/D-Bus permission.
 Use only an established printer capability in `printer-caps.conf`; auto
 otherwise uses its existing conservative fallback. Do not change chunking
 or protocol settings to compensate for geometry. Follow the complete

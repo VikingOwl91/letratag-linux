@@ -116,6 +116,35 @@ remains unresolved and no DPI compensation was applied. Full evidence:
 Recommendation: NO-GO for v0.3.0 with dimensional-accuracy claims. No tag,
 publication or release was created.
 
+### Addendum 2026-10-21 (btleplug BLE backend migration, phases 1-5)
+
+A selectable `btleplug` BLE backend was added behind the existing
+`Transport` abstraction (`BtleplugTransport` over a mockable
+`GattCentral`/`GattPeripheral` boundary with a scripted mock), preserving
+the BlueZ backend, the mock default, the Engine/journal semantics, the CLI
+behavior, Direct IPP as recommended and CUPS as Experimental. Backend
+selection: `serve --transport mock|bluez|btleplug`, `hardware-send
+--transport bluez|btleplug` (default bluez). btleplug 0.11.8 is pinned
+exactly; its Linux backend uses BlueZ via bluez-async/D-Bus.
+
+Software gates after the change: default workspace 90 tests passed,
+all-features 124 passed, zero failed; clippy `-D warnings` clean; rustfmt
+clean; both IPP suites passed. New deterministic coverage: byte-exact
+preservation of the retained HELLO LINUX and RAW diagnostic payloads
+(committed fixtures), exact GATT operation traces with Write Request mode,
+profile validation, discovery/status/write timeouts, mid-transfer failure
+without replay, oversized-write rejection, short-command behavior, and
+Engine journal semantics over the mock GATT boundary.
+
+The connect-only backend comparison (no print payload transmitted) found
+the same device, GATT table, characteristics, write mode (ATT Write
+Request), payload hashes and effective write size (244) on both backends;
+only connect/disconnect timings and the unexposed GATT value limit differ.
+Evidence: [backend comparison](evidence/backend-comparison-2026-10-21.md),
+[plan](btleplug-migration-plan.md). The physical feed-pitch discrepancy is
+unchanged and not assumed fixed by the library change; hardware acceptance
+(phase 6) is pending explicit operator authorization.
+
 ## Historical verification record begins, 2026-10-18
 
 At that date the hardware-independent PDF-first candidate passed the build,

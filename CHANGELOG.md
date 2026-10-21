@@ -41,3 +41,16 @@ compensation was applied. Recommendation: NO-GO for dimensional-accuracy
 claims. Evidence:
 [release readiness report](docs/evidence/release-readiness-v0.3.0-2026-10-21.md).
 No version bump, tag, publication or release was made.
+
+### BLE transport, 2026-10-21 (unreleased)
+
+* Add a selectable [btleplug](docs/btleplug-migration-plan.md) BLE backend
+  (pinned 0.11.8) behind the existing transport abstraction, with a
+  mockable GATT boundary and deterministic regression tests. `serve
+  --transport mock|bluez|btleplug`; `hardware-send --transport
+  bluez|btleplug` (default bluez, unchanged). Mock stays the default;
+  Engine, journaling, protocol, rendering, Direct IPP and the Experimental
+  CUPS labeling are unchanged. A connect-only comparison found identical
+  payloads, GATT operations and write mode on both backends; see
+  [backend comparison](docs/evidence/backend-comparison-2026-10-21.md).
+  The feed-pitch discrepancy is not assumed fixed by the library change.

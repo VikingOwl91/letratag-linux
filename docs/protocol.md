@@ -6,8 +6,11 @@ core and reference research, not enabled direct raster-stream ingestion.
 
 [Direct IPP](direct-ipp.md) is the recommended/default client workflow;
 [CUPS integration](cups-experimental.md) is Experimental. Both use the same
-PAPPL server and unchanged Rust packing/BlueZ transport. The default transport
-remains mock. Client workflow choice does not establish physical dot pitch.
+PAPPL server and unchanged Rust packing and BLE transport. The default
+transport remains mock. Client workflow choice does not establish physical
+dot pitch. The BLE backend is selectable (`bluez`, established, or
+`btleplug`, alternative); both produce identical payloads and GATT write
+operations (see [backend comparison](evidence/backend-comparison-2026-10-21.md)).
 
 Research date: 2026-10-18, hardware-verified additions marked inline
 (2026-10-20/21). This is not a manufacturer specification. The
