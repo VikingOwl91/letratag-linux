@@ -1,8 +1,105 @@
 # Verification record
 
-Status: the hardware-independent PDF-first candidate passed the build, Rust
-and isolated mock IPP gates on 2026-10-18. Physical acceptance remains open.
-No physical printer was available, and no BLE print was attempted.
+## Current guidance, 2026-10-21
+
+[Direct IPP](direct-ipp.md) is the recommended/default workflow. It sends
+PDF directly to the shared PAPPL → Rust → BLE path, without a CUPS scheduler.
+[CUPS is Experimental](cups-experimental.md); historical readable output
+does not establish dimensional accuracy or a production-ready queue.
+The CLI's transport default remains mock, not BlueZ. This update authorizes
+no physical printing, hardware operation, queue changes or service activation.
+
+The current evidence boundary is:
+
+* Direct IPP 50 × 12 mm: one operator-confirmed readable physical label;
+  detailed measurements were not taken.
+* Direct IPP 50 × 12 mm and 63.5 × 12 mm: existing mock controls captured
+  explicit media-col 1200 × 5000 and 1200 × 6350, yielding 315 and 400 columns.
+  The longer direct control is not a physical acceptance result.
+* Experimental CUPS 50 × 12 mm: historical readable-output acceptance only.
+* CUPS `pdftopdf`: 0.787402 shrink on both axes reproduced offline after
+  unresolved custom media selected a 50-mm output page. The submitted media
+  keyword did not establish the actual size. Scaling none preserved the
+  400-column artwork offline; that control is not a complete production fix.
+  Historical scheduler-forwarded attributes and hardware payload bytes remain
+  missing, as does full live scheduler-to-mock acceptance for this correction.
+* The software still uses 160 dpi. Historical ~159/160-dpi text inference
+  versus later conditional ~316-dpi apparent feed remains unresolved; native
+  isotropic pitch and a DPI fix are not established.
+* Hardware outcomes stay uncertain/inflight until operator inspection.
+  `abort-job` is not a guarantee against every client/scheduler resend, and
+  the journal is not cross-request idempotency. Current queue state has not
+  been inspected here; do not infer removal from historical cleanup prose.
+
+The authoritative [forensic report](evidence/resolution-investigation-2026-10-21.md)
+retains measurements, hashes, controls, limits and its historical
+execution-blocked CUPS shell regression. It is unchanged. Use the
+[current hardware runbook](hardware-acceptance.md) for existing-hardware-first
+prerequisites and conservative journal handling.
+
+### Direct IPP recommendation checks, 2026-10-21
+
+This update changes current documentation, informational `cups-settings`
+output/CLI help, offline fixtures, and CI checks. No rendering, native DPI,
+protocol, BlueZ, runtime configuration or version change was made. Direct
+IPP was already available; no default routing change in production code
+was necessary. `serve` still defaults to mock. The existing CUPS command and
+integration remain available as Experimental.
+
+Independent executing verification used staged Rust/Cargo 1.98.1, offline
+vendored dependencies and the existing patched PAPPL 1.4.9 prefix. An initial
+Rustup bootstrap failed with `Temporary failure in name resolution`; no
+different toolchain was substituted. The existing same-version staged tools
+and relocated prefix enabled the checks without downloading dependencies.
+
+| Gate | Result |
+|---|---|
+| Default workspace tests, including doctests | 86 passed |
+| All-feature workspace tests, including doctests | 105 passed |
+| Workspace rustfmt and all-feature clippy `-D warnings` | Passed |
+| General PDF-only IPP suite (`scripts/test-ipp.sh`) | Passed: rejection, direct lp/lpr, 4 mock captures, bounded history, multipage preservation |
+| Final Direct IPP suite (`scripts/test-direct-ipp.sh`) | Passed: explicit 50/63.5-mm requests, lp/lpr, state queries, 4 independently decoded legacy mock captures |
+| Standalone geometry oracle tests | 3 passed, including common shrink/shift/mirror, missing interior and extra ink rejection |
+| Inflight-only completion-poll fixture | Count 0 while inflight, then 1 after completion; same helper used by actual polling |
+| Targeted informational-report tests, default/all features | 3 passed in each configuration |
+| Final standalone helper formatting and shell syntax | Passed |
+| Local Markdown links | 65 file targets across 13 documents passed; URLs, anchors and historical evidence targets excluded |
+
+The direct mock suite produced three 315 x 32 rasters and one 400 x 32
+raster, each with the independently specified synthetic rectangle at
+x44..266/y11..19. Only four antialiased corner pixels are excluded from its
+mask oracle. The longer frame retains the identical artwork and adds 85
+blank feed columns. A mismatched-length fifth job aborted with
+`document-unprintable-error`, leaving only the original four engine journals.
+Initial Print-Job acceptance was not treated as completion; the example
+Get-Job request separately confirmed completed mock states.
+
+The first standalone helper formatting check failed and was corrected.
+Affected formatting, report tests, Direct IPP tests and printer clippy were
+then re-executed successfully. The first combined Clippy run exceeded the
+verification time limit; the isolated Clippy check passed. Default filtered
+tests retain an existing warning: `function resolve_chunk_mode is never used`
+at `crates/letratag-printer/src/main.rs:50`; all-feature Clippy is clean.
+
+No requested local execution gate remains blocked. CI now includes the Direct
+IPP suite and standalone-helper formatting, but no remote CI result is
+claimed. Historical full CUPS scheduler/media-col replay, graphical dialogs,
+packaged installation, systemd runtime and physical dimensional acceptance
+remain unverified, not converted into passes by these checks.
+
+The authoritative forensic SHA-256 remained
+`8454d08866d45a45e31f7c1473e16225272717b4efa9bb2fd5ce64d7a55fc250`.
+Tracked rendering, protocol, transport, native adapter, geometry and version
+paths have no diff from the baseline. Tests used scratch-only builds and
+explicit mock loopback destinations; no BLE connection, physical print,
+system queue change, crate publication or release occurred.
+
+## Historical verification record begins, 2026-10-18
+
+At that date the hardware-independent PDF-first candidate passed the build,
+Rust and isolated mock IPP gates. No physical printer was available and no
+BLE print was attempted then. The dated addenda record later results;
+earlier calibration conclusions are superseded by the current guidance above.
 
 ## Levels
 
@@ -11,7 +108,7 @@ No physical printer was available, and no BLE print was attempted.
 | Unit/property/golden tests | Rust test binaries | No |
 | Mock integration | Complete Rust job and captured reference packets | No |
 | Local print-system integration | Loopback PAPPL, IPP clients, lp/lpr | No |
-| Physical hardware | Actual BLE exchange, tape output and measurements | Not executed |
+| Physical hardware | Actual BLE exchange, tape output and measurements | Not executed as of 2026-10-18; later readable-output results below |
 
 ## Final executed gates
 
@@ -26,7 +123,7 @@ locked vendored dependencies and the private PAPPL prefix in a read-only
 * Debug and release all-feature workspace builds: passed.
 
 PAPPL revision: `ae1889822d872eddd572a43ad0a4a3674fa5a9fa` (1.4.9).
-Current applied patch SHA256:
+Applied patch SHA256 recorded for that run:
 `d9062ac7f3231c562eeecfe6c0ca52c7461ba607f05241e3af3b1e4685bad25a`.
 All final gates used this patch, including the named CUPS-client URI amendment.
 The clean reference checkout remains unchanged; the private library was built
@@ -66,7 +163,7 @@ fallback), adding adaptive chunk sizing (`auto`/`safe`/`manual` with
 `effective_write_limit = min(transport, validated printer cap, protocol)`
 and a per-address validated-caps file), documenting the job lifecycle with
 recovery regression tests, and recalibrating the PDF layout from the
-provisional 200 dpi to the measured 160 dpi, the gates were re-run on the
+provisional 200 dpi to the then-inferred 160 dpi, the gates were re-run on the
 final state (commits `6c75613`..`eb2ba45`):
 
 * Default workspace: 67 tests passed, zero failed.
@@ -128,14 +225,33 @@ result); it was never uploaded. See the correction in
 design. The temporary publication token was left for the operator to
 revoke; no credentials were committed (`.env` is git-ignored).
 
+### Addendum 2026-10-21 (independent geometry forensics)
+
+The final calibration's two-axis shrink is reproduced entirely offline:
+CUPS `pdftopdf` embeds a 0.787402 scale into a 50-mm output PDF, yielding
+315 raster columns instead of 400. Exact raster hashes agree between the
+preserved CUPS mock capture and a new filter reconstruction. An offline
+scaling-none control preserves 400 columns. No hardware payload bytes were
+retained; hardware diagnostics establish lengths/timings only. This does
+not prove variable printer stepping or resolve older apparent feed pitch.
+The latest operator dimensions, chronology, independent decoder, hashes,
+controls, and explicit uncertainties are recorded in
+[evidence/resolution-investigation-2026-10-21.md](evidence/resolution-investigation-2026-10-21.md).
+Production rendering, protocol, transport, and versions are unchanged.
+The final inflight journal remains unarchived; the earlier draft's claim
+that all four calibration journals were archived was incorrect. Earlier
+Rust/build gates belong to their original changes, not proof of physical
+geometry. New checks are offline decoder and CUPS-filter/mock controls.
+
 ### Addendum 2026-10-21 (CUPS end-to-end hardware acceptance)
 
 The full CUPS path — `lp` → CUPS scheduler → IPP → PAPPL → Rust BLE
 transport → BlueZ → DYMO LetraTag 200B — was acceptance-tested with one
 physical print, operator-confirmed (label `CUPS-E2E-0001`, 50 × 12 mm).
 A dedicated driverless queue `letratag-e2e` (`-m everywhere`,
-`printer-error-policy=abort-job`) was created for the run and removed
-afterwards; the existing `Canon_LBP633C` queue was not touched. Before the
+`printer-error-policy=abort-job`) was created for the run; the historical
+record reported its later removal and the existing `Canon_LBP633C` queue
+untouched. This is not a current queue-state check. Before the
 physical print, the identical CUPS path was validated against the mock
 transport (temporary queue, since removed): one completed job, capture
 decoded to width 315 with ink inside the printable band. Software-level
@@ -276,16 +392,17 @@ The GitHub Actions workflow is configuration only until it runs on a forge.
 No CI run, published release, package installation or service activation is
 claimed by local results.
 
-## Remaining acceptance boundaries
+## Remaining acceptance boundaries (current, 2026-10-21)
 
 * Terminal-status sequencing, auto-completion, reachable rows, minimum
-  reliable feed and actual cut length remain open. Row orientation and the
-  effective DPI are measured (2026-10-20); the physical lead-in (~3.4 mm)
-  is not modeled in the layout.
+  reliable feed and actual cut length remain open. Historical orientation
+  observations do not settle the ~160 versus ~316 apparent feed conflict.
+  Native pitch remains unverified; the historical ~3.4-mm extra lead-in is
+  not modeled in the layout.
 * The serve path supports `--transport bluez` behind an explicit operator
-  choice; the mock remains the default. The serve-to-BLE path is wired and
-  unit-tested but has not yet produced a physical print; hardware BLE
-  evidence so far comes from the `hardware-send` path.
+  choice; the mock remains the default. Direct IPP through that shared path
+  produced readable 50 × 12-mm output without dimensional measurements.
+  Direct 63.5-mm media-col acceptance remains mock-only.
 * Direct PWG/URF input remains disabled until full-document validation is proven.
 * PAPPL internal shutdown races are not repaired by the process-lifetime FFI
   workaround. Sanitizer testing and upstream follow-up remain necessary.
@@ -294,10 +411,13 @@ claimed by local results.
 * Queue persistence, cancellation races, lost IPP acknowledgments and scheduler
   resubmissions need separate production acceptance. The durable side-effect
   journal is not a cross-request exactly-once service. See `security.md`.
-* A separate CUPS scheduler, graphical print dialog, systemd runtime, package
-  installation and actual BlueZ authorization are separate acceptance checks.
+* Experimental CUPS needs resolved forwarded media-col and post-filter
+  geometry acceptance against mock; the offline scaling-none control alone
+  is not a production fix. A graphical print dialog, systemd runtime, package
+  installation and service-user BlueZ authorization remain separate checks.
   An attempted `cupsd -h` invocation was denied with `Permission denied`; it
   was not retried through another route.
 * The existing HomeOps/Snipe-IT reference was only read. Its nine-page PDF is
-  not an end-to-end driver acceptance fixture. No existing printer or global
-  CUPS/Bluetooth configuration was changed.
+  not an end-to-end driver acceptance fixture. The initial isolated run did
+  not change an existing printer or global CUPS/Bluetooth configuration;
+  later dedicated-queue experiments are separately recorded above.

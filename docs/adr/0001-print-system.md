@@ -1,5 +1,21 @@
 # ADR 0001: PAPPL with a small C ABI and a Rust device core
 
+## Workflow amendment, 2026-10-21
+
+Direct IPP is the officially recommended/default client workflow. Clients
+submit PDF jobs to the application's existing PAPPL endpoint at
+`ipp://127.0.0.1:8631/ipp/print`, without a system CUPS queue or scheduler.
+See [Direct IPP](../direct-ipp.md). CUPS queue integration is
+[Experimental](../cups-experimental.md), not a required future installation
+step. Direct IPP support in graphical applications varies; this decision does
+not promise compatibility with every print dialog.
+
+This changes workflow guidance only. Both client paths use the same PAPPL
+IPP server, C ABI, Rust rendering/packing, and transport implementation.
+The default transport remains mock; hardware output still requires an explicit
+operator choice. PAPPL/libcups remain native library dependencies. Using libcups
+or its `lp` client does not require running the system CUPS scheduler.
+
 ## Approved PDF-first safety amendment
 
 The user approved a separately maintained, opt-in PAPPL 1.4.9 document-policy
@@ -39,12 +55,15 @@ into primitive ABI types. Rust owns the protocol, raster geometry, BlueZ
 transport, PDF conversion invocation, print journal, and retry rules.
 No custom HTTP/IPP server and no Python wrapper.
 
-The system print path remains an explicitly named mock destination until
-Phase 4. An experimental BLE transmission path is separate from system printing.
-This prevents a normal print dialog action from accidentally printing on
-physical tape.
+The service defaults to an explicitly named mock destination. The experimental
+BLE transport requires an explicit selection; choosing Direct IPP does not
+enable it. An ordinary submission to the default service cannot print on tape.
 
-## Comparison
+## Historical architecture comparison (2026-10-18)
+
+This table records the original evaluation, not the enabled input formats or
+the current recommended client workflow. The endpoint now accepts PDF only;
+PWG Raster/URF input remains disabled.
 
 | Criterion | A: PAPPL with Rust | B: CUPS 2.x filter/backend/PPD |
 |---|---|---|
@@ -89,23 +108,28 @@ Sources at the same commit:
   job is finished, not at the end of a page.
 
 PDF is not a built-in PAPPL decoder. Our MIME filter invokes a resource-limited
-Poppler subprocess from Rust. Alternatively, system CUPS may convert PDF to
-PWG Raster itself. Both paths require their own tests.
+Poppler subprocess from Rust. The historical alternative of CUPS converting
+PDF to PWG Raster is not an enabled input path. Experimental CUPS integration
+must deliver PDF and verify post-filter geometry and forwarded media attributes.
 
 DNS-SD is disabled by default. A LAN announcement for a loopback-only service
-would be misleading. Future local CUPS registration deliberately uses an IPP
-URI; automatic BLE discovery provides candidates only, not automatically
-installed printers.
+would be misleading. Direct IPP uses the loopback endpoint without queue
+registration. Experimental CUPS registration uses that same IPP URI;
+automatic BLE discovery provides candidates only, not automatically installed
+printers.
 
 ## Consequences and open gates
 
 * Native PAPPL dependency; building the core without the feature remains possible.
 * No support for raw packets from arbitrary IPP clients.
 * Only one page and one copy per job. Multiple jobs are serialized.
-* ~~200 dpi~~ **160 dpi** (measured 2026-10-20, applied 2026-10-21), 30 active
-  rows, and 12 × 10..200 mm are a development profile; the length bounds are
-  software/test values, not confirmed hardware capabilities.
-* Physical status completion, feed, and GATT write size were established in
-  Phase 4 (chunk sizing 2026-10-21). The experimental BLE path deliberately
+* The current software layout profile is 160 dpi, 30 active rows, and
+  12 × 10..200 mm. These values are not a universal physical-pitch guarantee;
+  the length bounds are software/test values, not confirmed hardware capabilities.
+  Historical apparent feed values near 160 versus 316 dpi remain unresolved.
+  See the [resolution investigation](../evidence/resolution-investigation-2026-10-21.md).
+* Phase 4 collected status/feed observations and a per-device validated GATT
+  write size (chunk sizing 2026-10-21). Those observations do not establish
+  universal geometry or certain physical completion. The experimental BLE path
   reports no certain print success and locks the journal after a transmission
   attempt; that conservative policy is unchanged.

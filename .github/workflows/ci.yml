@@ -25,11 +25,14 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="$PWD/.research/pappl-prefix/lib/pkgconfig"
           cargo fmt --all -- --check
+          rustfmt --check tests/make-pdf.rs tests/inspect-direct-captures.rs
           cargo test --locked --workspace
           cargo test --locked --workspace --all-features
           cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
           cargo build --locked --release --workspace --all-features
-      - name: Loopback IPP integration, never physical BLE
+      - name: Recommended Direct IPP clients and media, mock only
+        run: bash scripts/test-direct-ipp.sh
+      - name: PDF-only loopback receive policy, never physical BLE
         run: bash scripts/test-ipp.sh
       - name: Dependency license inventory
         run: bash scripts/check-licenses.sh | tee test-output/dependency-licenses.tsv

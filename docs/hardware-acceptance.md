@@ -1,18 +1,67 @@
 # Hardware acceptance: LetraTag 200B
 
-Status: **first physical print achieved and operator-confirmed on
-2026-10-20** (attempt 7; see
-[evidence/hardware-attempt-7-2026-10-20-success.md](evidence/hardware-attempt-7-2026-10-20-success.md)).
-**End-to-end acceptance print through the IPP serve path achieved and
-operator-confirmed on 2026-10-21** (PDF → IPP/PAPPL → BlueZ → printer; see
-[evidence/hardware-acceptance-serve-2026-10-21.md](evidence/hardware-acceptance-serve-2026-10-21.md)).
-The layout is recalibrated to the measured 160 dpi (2026-10-21) and the
-BlueZ transport is wired into the IPP serve path behind an explicit
-`--transport bluez` operator choice (2026-10-21). Terminal-status
-auto-completion, a hardware-backed system queue and the remaining checklist
-items are still open. Do not mark the checklist complete from the prints
-so far. No firmware updates, controller resets or undocumented persistent
-settings are permitted.
+## Current guidance, 2026-10-21
+
+[Direct IPP](direct-ipp.md) is the recommended/default workflow:
+PDF → direct IPP → shared PAPPL endpoint → Rust rendering/protocol →
+BlueZ BLE → printer. [CUPS is Experimental](cups-experimental.md); it adds
+an upstream filtering/scheduling boundary, not another hardware backend.
+This documentation change authorizes no physical print, BLE operation,
+queue change or service activation. The CLI still defaults to mock transport;
+real hardware requires explicit `--transport bluez` and an operator-verified
+address. No firmware update, controller reset or undocumented persistent
+setting is permitted.
+
+First physical output was confirmed on 2026-10-20 (attempt 7). Direct IPP
+produced a readable 50 × 12-mm label on 2026-10-21, without ruler measurements.
+That is readable-output acceptance, not dimensional acceptance. Existing
+forensic evidence records mock-only direct IPP controls for both 50 × 12 mm
+(`media-col` 1200 × 5000) and 63.5 × 12 mm (1200 × 6350), producing 315 and
+400 columns respectively. The 63.5-mm direct path has no physical acceptance.
+
+The software uses a 160-dpi layout model. Native isotropic pitch is not
+established: the historical ~159/160-dpi text inference conflicts with later
+conditional apparent feed values around 316 dpi. CUPS `pdftopdf` demonstrably
+shrinks the final calibration artwork by 0.787402 on both axes, but that
+finding does not resolve the older pitch conflict. See the authoritative
+[geometry investigation](evidence/resolution-investigation-2026-10-21.md).
+Historical measurements below are retained, not promoted to a resolved
+calibration or a DPI fix.
+
+### Acceptance procedure for a separately authorized future run
+
+1. Inspect the existing printer, cassette, journals and retained artifacts
+   first. Confirm adequate batteries, seated 12-mm cassette, closed lid and
+   an unambiguous device identity. Do not buy replacement hardware or alter
+   Bluetooth configuration to explain an unproven cause.
+2. Inspect every unresolved journal and record the operator's decision before
+   any new submission. Never use a fresh state directory to bypass an
+   unresolved physical outcome. Use synthetic content and private journals,
+   spools and captures; payloads contain the entire label.
+3. Reproduce the intended direct IPP request against mock transport first,
+   following [Direct IPP](direct-ipp.md). Check actual PDF bytes, explicit
+   `media-col`, scaling none, orientation, one copy, final job state and
+   decoded raster landmarks. A successful initial IPP response only means
+   accepted/queued. No system CUPS queue is required.
+4. Stop here under the present authorization. A future physical run needs
+   separate operator approval of the exact document, device, profile,
+   transmission and journal recovery plan. Use the already accepted legacy
+   profile and only the printer's recorded validated chunk capability, not
+   a capability inferred from MTU. Do not silently switch profile or transport.
+5. After an authorized run, record physical readability separately from
+   measured geometry. Retain raw measurements and landmark definitions,
+   notification timing, write lengths, operator observations and any actual
+   payload capture. Missing hardware bytes cannot be replaced with mock bytes.
+6. Keep uncertain outcomes inflight until inspected. Code 0, elapsed time,
+   CUPS completion and a readable label do not establish dimensional accuracy
+   or safe automatic completion. The journal is not cross-request idempotency;
+   client/scheduler retries or manual resubmissions need separate controls.
+
+## Historical bring-up and acceptance records, 2026-10-20/21
+
+The commands and proposed next attempts below record earlier work. They are
+not instructions to execute now; current guidance and the forensic report
+supersede their calibration conclusions and workflow recommendations.
 
 ## Before connecting
 
@@ -153,16 +202,18 @@ correct. Ruler measurements: leading blank 23.25 mm, text 24.3 mm,
 trailing blank 19 mm (total 66.55 mm). Ink extent in the raster: columns
 124..275, rows 8..23.
 
-Measured feed dot pitch: 152 text columns = 24.3 mm = **158.9 dpi**,
-matching the manufacturer's 160 DPI spec. The 200 dpi development layout
-value is wrong for this device (content prints 1.25x longer than the
-layout intends along the feed). The printer also adds ~3.4 mm of lead-in
-beyond the raster's leading blank columns.
+Historical feed-pitch inference: 152 text columns = 24.3 mm = **158.9 dpi**.
+This was interpreted as matching the manufacturer's 160 DPI spec and as
+rejecting the provisional 200-dpi layout. It is not a verified native pitch:
+the later forensic report leaves the ~160 versus ~316 apparent feed conflict
+unresolved. The historical inferred extra lead-in was ~3.4 mm beyond the
+raster's leading blank columns.
 
-Root cause of attempts 1-6: weak batteries (fail-fast rejection with
-status 2). The operator replaced them with well-charged cells; the device
-and tape are new. The profile/chunk-size/ESC-M experiments in attempts
-2-6 were confounded by the weak batteries.
+Historical attribution for attempts 1-6: weak batteries (fail-fast rejection
+with status 2); the operator replaced them with well-charged cells and
+reported new device/tape. The profile/chunk-size/ESC-M experiments in attempts
+2-6 were confounded. The forensic report does not treat that attribution as
+isolated proof of every earlier failure.
 
 The engine still reports uncertain by design (the terminal-status
 sequence is not yet calibrated into the completion policy). The inflight
@@ -233,10 +284,11 @@ operator-confirmed (`HELLO LINUX` readable, orientation correct). See
   exactly one `1b 52 00` result notification, ~7.1-7.2 s after the last
   write (after the physical print duration). No 1/5 alternation with fresh
   batteries and 400-column content.
-* Measured dot pitch is ~160 dpi isotropic (feed: 152 text columns =
-  24.3 mm = 158.9 dpi; across: 16 text rows = 2.25-2.5 mm, 2.54 mm expected
-  at 160 dpi). The manufacturer's 160 DPI spec is confirmed on both axes;
-  the 200 dpi development layout value is 25% too large along the feed.
+* Historical measurements: feed 152 text columns = 24.3 mm = 158.9 dpi;
+  across 16 text rows = 2.25-2.5 mm (2.54 mm expected at 160 dpi). The
+  original isotropic-160 interpretation is not confirmed native calibration.
+  These coarse/corrected text measurements and later conditional ~316-dpi
+  feed estimates remain in conflict; retain both rather than stretch an axis.
 * Completion policy decision: kept conservative. The observed contract
   (single result notification after printing) makes the current handling
   safe, but attempt 3's two-notification sequence under weak batteries
@@ -261,7 +313,8 @@ Measure with a ruler/caliper:
 * output of 100 and 200 feed columns, including any systematic X/Y ratio;
 * total cut length versus the nominal PDF media length.
 
-Compare measurements against the conflicting 160/200-dpi source claims.
+Compare measurements against the software's 160-dpi model, conflicting
+160/200-dpi source claims and the unresolved later ~316-dpi apparent feed.
 Keep the raw measurements, not just a chosen DPI value. Do not calibrate
 length by stretching only one axis until text happens to look right.
 
@@ -278,15 +331,17 @@ system queue. Validate several separately submitted jobs in order, including
 power-off, low battery, lid/cassette conditions and a disconnect during transfer.
 Do not deliberately jam tape or interfere mechanically with the print head.
 
-## 6. System integration acceptance
+## 6. Historical Experimental CUPS integration checklist
 
 1. Retain a dedicated mock queue for regression tests. **Done:** the CUPS
    path was validated against the mock transport before the physical print
    (temporary queue `letratag-e2e-mock`, since removed).
 2. Register a **new** local IPP target only with operator approval. Do not
    replace existing CUPS printers. **Done 2026-10-21:** dedicated queue
-   `letratag-e2e` (driverless IPP Everywhere), removed again after the
-   acceptance run; the existing `Canon_LBP633C` queue was not touched.
+   `letratag-e2e` (driverless IPP Everywhere). The earlier run record reported
+   removal after acceptance; current queue state has not been inspected here.
+   The later forensic investigation left system queues intact. The existing
+   `Canon_LBP633C` queue was reported untouched during acceptance.
 3. Print one synthetic 50 × 12-mm PDF with `print-scaling=none`, then a
    different supported length using an explicit IPP media collection.
    **Partially done 2026-10-21:** the 50 × 12-mm PDF printed through CUPS
@@ -296,7 +351,8 @@ Do not deliberately jam tape or interfere mechanically with the print head.
 5. Verify the application did not introduce page fitting, margins, extra
    copies or resubmission on an uncertain outcome. **Done for CUPS:** the
    queue used `printer-error-policy=abort-job`; exactly one transmission and
-   no duplicate labels (operator-confirmed).
+   no duplicate labels were observed in that run (operator-confirmed).
+   `abort-job` is not a guarantee against all scheduler/client resends.
 6. Check the non-root service user's actual BlueZ/D-Bus permissions and all
    systemd restrictions, without loosening global Bluetooth policy by default.
 7. Fault-inject cancellation during preflight and lost IPP acknowledgments.
@@ -304,7 +360,11 @@ Do not deliberately jam tape or interfere mechanically with the print head.
    possibly printed label. The existing journal is not cross-request
    idempotency, and mock completion is not a physical exactly-once guarantee.
 
-## 7. CUPS end-to-end acceptance, 2026-10-21: PASS (operator-confirmed)
+## 7. Experimental CUPS: historical readable-output acceptance, 2026-10-21
+
+This was a readable-output pass, not dimensional-accuracy acceptance. See
+[CUPS Experimental](cups-experimental.md) before considering this path.
+The setup below is historical and is not authorized for execution now.
 
 Full path verified: `lp` → CUPS scheduler → IPP → PAPPL
 (`letratag-printer`) → Rust BLE transport → BlueZ → DYMO LetraTag 200B.
@@ -322,22 +382,24 @@ target/debug/letratag-printer serve \
   --port 8631 --transport bluez --address 90:E5:B1:49:DA:AE \
   --profile legacy --diagnostics
 
-# 2. Dedicated driverless queue (IPP Everywhere), no retries.
+# 2. Dedicated driverless queue (IPP Everywhere), abort-job policy.
 lpadmin -p letratag-e2e -E -v ipp://127.0.0.1:8631/ipp/print -m everywhere
 lpadmin -p letratag-e2e -o printer-error-policy=abort-job
 
 # 3. One print job through CUPS.
 lp -d letratag-e2e -o media=12x50mm.Borderless test-output/acceptance/cups-e2e-0001.pdf
 
-# Removal returns the system to its prior state:
+# Historical cleanup command; current queue state is not asserted here:
 lpadmin -x letratag-e2e
 ```
 
 Notes: the driverless PPD advertises CUPS' converted input formats while
-the endpoint stays PDF-only; `print-scaling` needs no option because the
-adapter defaults to no-scaling when the attribute is absent; the media
-keyword through CUPS is `12x50mm.Borderless` (dimensions 1200 × 5000 in
-1/100 mm). blueman-applet must be stopped during hardware runs (it stops
+the endpoint stays PDF-only. The adapter's scaling-none default does not
+prevent upstream CUPS PDF fitting. This run used `12x50mm.Borderless`
+(dimensions 1200 × 5000 in 1/100 mm); other lengths need resolved media
+and post-filter geometry checks against a mock. See the
+[geometry investigation](evidence/resolution-investigation-2026-10-21.md).
+blueman-applet must be stopped during hardware runs (it stops
 BLE discovery within a second). The printer must be powered on; if BlueZ
 no longer knows the device, the transport rediscovers it (bounded LE
 discovery, exact address match).
@@ -379,8 +441,9 @@ not sufficient evidence of a successful print.
 
 * **Printer off / unreachable:** connect fails before any write
   (`SafeTransport`); no journal entry; CUPS job ends aborted (abort-job
-  policy, no retry). Verified live on 2026-10-21 (two connect failures
-  before the printer was powered on; nothing was sent either time).
+  policy; no retry observed in that run). Verified live on 2026-10-21
+  (two connect failures before the printer was powered on; nothing was sent
+  either time).
 * **BLE discovery failure:** bounded LE discovery (15 s, 256 events, exact
   address match) then `DeviceNotFound` → `SafeTransport`. Covered by
   deterministic transport tests.
@@ -398,7 +461,12 @@ not sufficient evidence of a successful print.
   Engine-level disconnect, status-timeout and cancellation paths are
   covered by deterministic mock tests.
 
-### Troubleshooting the CUPS path
+### Historical Experimental CUPS troubleshooting
+
+For current diagnosis use [Experimental CUPS](cups-experimental.md). In
+particular, authorization failures do not prove the endpoint is down, and
+enabling a queue can release pending jobs. The older notes below are not
+permission to perform those operations.
 
 * `lpadmin` fails or the queue has no PPD: the endpoint is not running or
   not answering — start it first and verify with
@@ -408,8 +476,9 @@ not sufficient evidence of a successful print.
 * Job aborts immediately ("Input rejected or print outcome uncertain"):
   document validation failed — one 12 mm page, at most 200 mm long, ink
   inside the centered 30-row printable area, qpdf-clean PDF.
-* Job aborts after connecting (printer off): `SafeTransport`, nothing was
-  sent, no journal entry; power the printer on and resubmit.
+* Connect fails with `SafeTransport`: inspect diagnostics and journal to
+  confirm nothing was sent. A new submission requires an operator decision;
+  an error alone does not authorize another attempt.
 * `Device ... not available` / connect failures: BlueZ no longer knows the
   device — re-scan (`bluetoothctl --timeout 10 scan le`); the transport
   also rediscovers automatically on the next job (bounded LE discovery).
@@ -420,40 +489,55 @@ not sufficient evidence of a successful print.
 * `Unable to cancel print job` in `lpstat -l`: informational; the job
   already finished.
 
+## Geometry investigation: software shrink demonstrated (2026-10-21)
+
+Offline forensics demonstrates that CUPS `pdftopdf` shrank the final
+calibration artwork by 0.787402 on both axes into a 50-mm output page.
+The hardware log supports 315 transmitted columns, not the intended 400;
+actual hardware payload bytes were not retained. This experiment does not
+establish variable feed stepping. The older apparent feed-pitch discrepancy
+remains unresolved. See the independent evidence record and its limits:
+[evidence/resolution-investigation-2026-10-21.md](evidence/resolution-investigation-2026-10-21.md).
+No rendering, protocol, or transport change was made. No additional
+physical printing is authorized. Verify post-filter geometry and resolved
+media dimensions against a mock before considering production changes.
+The submitted media keyword did not guarantee the actual selected size.
+The offline scaling-none control retained 400 columns and unchanged artwork,
+but it is not a complete production fix: actual scheduler-forwarded media-col
+and post-filter geometry still need authorized mock-only acceptance.
+
 ## Remaining acceptance criteria (updated 2026-10-21)
 
-Hardware bring-up status: first physical print achieved and
-operator-confirmed; repeatability and geometry measured; layout recalibrated
-to 160 dpi; the BlueZ transport is wired into the IPP serve path behind
-`--transport bluez`. Still open before a hardware-backed system queue:
+Hardware bring-up produced readable output; the shared PAPPL endpoint can
+submit through Rust and BLE behind explicit `--transport bluez`. Direct IPP
+is the recommended workflow, not a hardware-backed CUPS system queue.
+The current 160-dpi software model remains unchanged. Still open:
 
 1. Terminal-status auto-completion policy: resolve the PRINTING-ack
    ambiguity (failure-case observations with fresh batteries, e.g. lid
    open), then decide whether a code-0 result marks the journal completed.
    Until then the hardware path stays operator-in-the-loop (uncertain
    outcome plus inflight journal).
-2. ~~Layout recalibration~~ **Done 2026-10-21:** the layout uses the
-   measured 160 dpi isotropic pitch; PDF page geometry, IPP media
-   conversion and tests derive from it. Physical length still includes
-   the printer's ~3.4 mm lead-in, which the layout does not model.
-3. CUPS/PAPPL over BLE: **Done 2026-10-21 for a local dedicated queue:**
-   the serve path accepts `--transport bluez` with an explicit address, and
-   the full `lp` → CUPS → PAPPL → BLE chain produced an operator-confirmed
-   label (section 7), with auto chunk sizing (validated cap 244), honest
-   transport diagnostics and the conservative uncertain outcome. Remaining
-   before a hardware-backed **system-wide** queue: the completion policy
-   (item 1), device availability detection before accepting jobs,
-   D-Bus/BlueZ permission checks for the non-root service user
-   (docs/security.md), a different-length CUPS print, a graphical-dialog
-   print, and separate operator approval for any system-wide CUPS change.
-4. Host adapter stability: the Bluetooth adapter power-cycles every 60 s
-   (blueman-applet polling plus USB autosuspend on the Realtek dongle, hci
-   index churn). Observed 2026-10-21: a running blueman-applet stops BLE
-   discovery within about a second of it starting and toggles adapter
-   properties (`Pairable: no` changed), and the BlueZ device cache was lost
-   entirely. A hardware-backed queue needs a policy for this: pause the
-   applet during use, or accept operator-driven retries of SafeTransport
-   failures; never automatic retransmission of uncertain jobs.
+2. Physical geometry: **unresolved**, not a completed recalibration gate.
+   PDF page geometry, IPP conversion and tests derive from the software's
+   160-dpi constant. Historical ~159/160-dpi text inference and later
+   conditional ~316-dpi feed estimates do not establish universal native
+   pitch. Recover existing payload/measurement provenance first; do not change
+   DPI or stretch an axis from these records. Historical extra lead-in
+   (~3.4 mm) and actual cut length are not modeled physical guarantees.
+3. Direct IPP production acceptance: readable 50 × 12-mm output is recorded,
+   not measured accuracy. The 63.5-mm direct control is mock-only. Check
+   non-root service-user D-Bus/BlueZ permissions (see [security.md](security.md)),
+   availability, cancellation and lost acknowledgments before unattended use.
+   Experimental CUPS additionally needs resolved forwarded media-col and
+   complete post-filter geometry checks against mock, different lengths and
+   application/dialog behavior. Any system-wide queue change needs separate
+   operator approval. The historical CUPS readable label does not close these.
+4. Host adapter stability: historical observations include discovery stopped
+   within about a second by a running blueman-applet, adapter property/index
+   churn and a lost BlueZ cache. Their current state was not inspected here.
+   Establish an operator-approved coexistence policy without global Bluetooth
+   changes or automatic retransmission of uncertain jobs.
 5. Fault injection: disconnect during transfer, power-off mid-job,
    lid/cassette conditions with fresh batteries, and scheduler
    resubmission behavior (the journal is not cross-request idempotency).
@@ -470,7 +554,8 @@ packet-profile choice, status sequence, photo and measurements. A matching
 mock packet stream is not evidence of successful BLE communication or print.
 
 Physical hardware test: executed 2026-10-20. First print succeeded (attempt
-7), calibration batch A/B confirmed repeatability and geometry. Evidence:
+7); calibration batch A/B repeated readable output and recorded measurements,
+not a now-resolved native pitch. Evidence:
 docs/evidence/hardware-attempt-7-2026-10-20-success.md and
 docs/evidence/hardware-calibration-batch-2026-10-20.md.
 
@@ -478,8 +563,8 @@ End-to-end serve-path acceptance print: executed 2026-10-21, one attempt,
 operator-confirmed physical label (`ASSET-0001` / `DYMO LT200B`). Evidence:
 docs/evidence/hardware-acceptance-serve-2026-10-21.md.
 
-CUPS end-to-end acceptance print: executed 2026-10-21, one attempt through
-`lp` → CUPS → PAPPL → BLE, operator-confirmed physical label
+CUPS historical readable-output acceptance print: executed 2026-10-21,
+one attempt through `lp` → CUPS → PAPPL → BLE, operator-confirmed physical label
 (`CUPS-E2E-0001`). Evidence: section 7 above and
 test-output/acceptance/cups-state/archive/DECISION.md.
 
@@ -488,8 +573,9 @@ BLE lifecycle test: executed 2026-10-21 (non-printing; see
 connection succeed without pairing; the device object is not guaranteed to
 exist before discovery; a local disconnect does not immediately remove it.
 
-End-to-end acceptance print through the serve path (PDF → IPP/PAPPL → BLE):
-in progress. A first attempt on 2026-10-21 failed at connect
+Historical first serve-path submission: on 2026-10-21 it failed at connect
 (`Error::Connect`, nothing sent, no journal) because the BlueZ device cache
 had been lost and the printer was unreachable; the transport now resolves
 absent devices via bounded discovery (commits `6b03012`, `26227fc`).
+The later direct IPP readable-output acceptance is recorded above; it is not
+still in progress and does not establish dimensional accuracy.

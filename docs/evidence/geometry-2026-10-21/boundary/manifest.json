@@ -1,0 +1,230 @@
+[
+  {
+    "file": "ipp-recorder.py",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-recorder.py",
+    "size": 3244,
+    "sha256": "033ef71a0be4ebf4831adb47bfb7802335c02e022d7ebad83cd54d0c28f9179d"
+  },
+  {
+    "file": "direct.test",
+    "source": "/tmp/opencode/letratag-geometry-offline/direct.test",
+    "size": 807,
+    "sha256": "26047f2662c03a08f99fc0afb2ccda27a37c4aa98ab9f9ec6b782c07c679e131"
+  },
+  {
+    "file": "all-boundary-jobs.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/all-boundary-jobs.log",
+    "size": 1095,
+    "sha256": "437ecbb42a86bb639bb1fd17ce6aa1b36954c706f1127bb6cc967c0425da66b6"
+  },
+  {
+    "file": "pappl-mock.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/pappl-mock.log",
+    "size": 2807,
+    "sha256": "59723b422f8d8190b99fe1eccbe551631ce36eeb9d51728499f048d0e132127f"
+  },
+  {
+    "file": "boundary-decoded.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-decoded.json",
+    "size": 6469,
+    "sha256": "a3e28632f926ffd9f5036f9e63c4098b0da2683bd5a313afe2fd13c9cc34db1c"
+  },
+  {
+    "file": "none400-wrong-media-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/none400-wrong-media-ipp.log",
+    "size": 1122,
+    "sha256": "9d1d6cdb0a7ca20047d03e471fed856730a792851468bbde849c28071b89e4f1"
+  },
+  {
+    "file": "none400-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/none400-ipp.log",
+    "size": 1110,
+    "sha256": "3d3958107fb54b6d5b3ec70aa9adf2b14737aeb83e8890e1bf685e4cd66f88de"
+  },
+  {
+    "file": "filtered400-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/filtered400-ipp.log",
+    "size": 1114,
+    "sha256": "d9d63afcb1ed81e453238e7ad42564b70c69a44b93d72282ab06a4a08f9a7b08"
+  },
+  {
+    "file": "filtered315-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/filtered315-ipp.log",
+    "size": 1114,
+    "sha256": "1d829fef81d0cff82631886e039c89e07fe452cc9cd137c235bc145f6d62babd"
+  },
+  {
+    "file": "direct400-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/direct400-ipp.log",
+    "size": 1112,
+    "sha256": "22b95cec7ef73988d54ae14f17b6f21274fd37af97edcd1148f318a0c7f00a07"
+  },
+  {
+    "file": "direct315-ipp.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/direct315-ipp.log",
+    "size": 1112,
+    "sha256": "0d52f18135625bf58fff91e7e75e7e1acc355c78f7f09b05065a8382259a9565"
+  },
+  {
+    "file": "008.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/008.json",
+    "size": 1058,
+    "sha256": "6a5087e38d2c487b30f1f48ba642e632650d53eea7963a30ccab8f86d14761ac"
+  },
+  {
+    "file": "008.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/008.ipp",
+    "size": 182,
+    "sha256": "268f5d93d8ef8760b2ab79ef6e271aa5f11cacf8c7f842f31e4211c31f77c999"
+  },
+  {
+    "file": "007.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/007.json",
+    "size": 2450,
+    "sha256": "53673cab965f689771cf27647c08c9de11760d9ec9d129e0e3177a2037c66099"
+  },
+  {
+    "file": "007.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/007.document",
+    "size": 2463,
+    "sha256": "23056c3f7780934c44835bf030469a85bdab8e7e7a7ce05a80762e1dd5d04e04"
+  },
+  {
+    "file": "007.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/007.ipp",
+    "size": 2925,
+    "sha256": "20dbf829c4569005771c9bc7f1c0855b83deec24711522c8ff56f9e184f89394"
+  },
+  {
+    "file": "006.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/006.json",
+    "size": 2438,
+    "sha256": "6726c618c0b3405bacbeeeb8ea12983e4f1cef85fb5befab9e00068843196f9c"
+  },
+  {
+    "file": "006.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/006.document",
+    "size": 2463,
+    "sha256": "23056c3f7780934c44835bf030469a85bdab8e7e7a7ce05a80762e1dd5d04e04"
+  },
+  {
+    "file": "006.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/006.ipp",
+    "size": 2913,
+    "sha256": "6f3469d6e0c2f930c78182f88848827074c8a72fba93c844c938d7a97bbb2680"
+  },
+  {
+    "file": "005.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/005.json",
+    "size": 2443,
+    "sha256": "bd6406d332a742bd89e2ebebf070ec4f690114eb7452e07dda8813025310ebe5"
+  },
+  {
+    "file": "005.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/005.document",
+    "size": 10230,
+    "sha256": "4acb64f38daedf66075bcbd3aa0aa8b85b9bb896b5e5d197204fd6332cc98778"
+  },
+  {
+    "file": "005.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/005.ipp",
+    "size": 10684,
+    "sha256": "b2f31e1932b3cce7451722d72eb4762200e365b5a25a58c74e2dfb8c0ac0c7d2"
+  },
+  {
+    "file": "004.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/004.json",
+    "size": 2443,
+    "sha256": "b43af142c462d2346de552577f35979bff4d17a2b77a6ed01e804d477fc84d95"
+  },
+  {
+    "file": "004.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/004.document",
+    "size": 10227,
+    "sha256": "c0538b1a3d6bd3b87f45ebb78f70f4ad73d331578028504922c2f6d0ce4b0ebd"
+  },
+  {
+    "file": "004.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/004.ipp",
+    "size": 10681,
+    "sha256": "0d98d17290a51f309866de294bb76b6f35cff0f8577666c0a2d7beaa08431a67"
+  },
+  {
+    "file": "003.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/003.json",
+    "size": 2440,
+    "sha256": "8315a9e3501991c516a863532bc8b675096a73c3ebd696c7fa18012f96244a0a"
+  },
+  {
+    "file": "003.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/003.document",
+    "size": 1336,
+    "sha256": "07e49ee4113d41aaf97b0d2f14e2f31de2bbec7ed813f1240ad07505cdb7d1b8"
+  },
+  {
+    "file": "003.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/003.ipp",
+    "size": 1788,
+    "sha256": "40b85f5ab55098861786ef8844dac49f56fef9df4fc5de4a4eaf7180a8a0dd57"
+  },
+  {
+    "file": "002.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/002.json",
+    "size": 2440,
+    "sha256": "a77db81e6d758d58f7c32d20a268e3136d8142fead269b2dd9f93e12f058006c"
+  },
+  {
+    "file": "002.document",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/002.document",
+    "size": 1343,
+    "sha256": "d23531b377df13791a85ab8c10f654cf8edead7516c8c70b173ad489d34e578e"
+  },
+  {
+    "file": "002.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/002.ipp",
+    "size": 1795,
+    "sha256": "64adee8d012975ee0f4f000ece2292de49dd6838293e7a9231cd4e0ef7179f9d"
+  },
+  {
+    "file": "001.json",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/001.json",
+    "size": 1449,
+    "sha256": "a3dc49f4b7a75eeaffaf8808718245571462d5104cb176a966e5967566d73a9b"
+  },
+  {
+    "file": "001.ipp",
+    "source": "/tmp/opencode/letratag-geometry-offline/ipp-boundary/001.ipp",
+    "size": 329,
+    "sha256": "96930fea089247c904058cc0c1528584664b0188ebd34e9315c95e8fc11f07cd"
+  },
+  {
+    "file": "1792555213338890552.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-state/1792555213338890552.ble",
+    "size": 1649,
+    "sha256": "155cbac3418d3045b109cc9f6c6d1936d1faa98782452e07f1e7b3e14a6825cd"
+  },
+  {
+    "file": "1792555213225223984.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-state/1792555213225223984.ble",
+    "size": 1306,
+    "sha256": "17b2d4e3f7b9beed82574b6971a03584a24a302e0120c00cc431c36fe45c0cd3"
+  },
+  {
+    "file": "1792555213078869380.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-state/1792555213078869380.ble",
+    "size": 1649,
+    "sha256": "155cbac3418d3045b109cc9f6c6d1936d1faa98782452e07f1e7b3e14a6825cd"
+  },
+  {
+    "file": "1792555213007649311.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-state/1792555213007649311.ble",
+    "size": 1306,
+    "sha256": "f5f21d2344c90cd33da1179daec7f574ba5973820c6f2c619925c4240cba97bd"
+  },
+  {
+    "file": "1792555212886538510.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/boundary-state/1792555212886538510.ble",
+    "size": 1306,
+    "sha256": "140c325bec7cba0d6b52b0e7991d58af120fd91b9c0ba413b4d5c2056fd06d64"
+  }
+]

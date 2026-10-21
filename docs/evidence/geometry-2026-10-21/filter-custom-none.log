@@ -1,0 +1,30 @@
+DEBUG: argv[0]="cupsfilter"
+DEBUG: argv[1]="1"
+DEBUG: argv[2]="cnachtigall"
+DEBUG: argv[3]="calibration-400.pdf"
+DEBUG: argv[4]="1"
+DEBUG: argv[5]="media=Custom.12x63.5mm print-scaling=none"
+DEBUG: argv[6]="test-output/acceptance/calibration-400.pdf"
+DEBUG: envp[0]="CONTENT_TYPE=application/pdf"
+DEBUG: envp[1]="CUPS_DATADIR=/usr/share/cups"
+DEBUG: envp[2]=""
+DEBUG: envp[3]="CUPS_SERVERBIN=/usr/lib/cups"
+DEBUG: envp[4]="CUPS_SERVERROOT=/etc/cups"
+DEBUG: envp[5]="LANG=en_US.UTF8"
+DEBUG: envp[6]="PATH=/usr/lib/cups/filter:/usr/bin:/usr/bin:/bin:/usr/bin"
+DEBUG: envp[7]="PPD=/tmp/opencode/letratag-geometry-offline/queue.ppd"
+DEBUG: envp[8]="PRINTER_INFO=cupsfilter"
+DEBUG: envp[9]="PRINTER_LOCATION=Unknown"
+DEBUG: envp[10]="PRINTER=cupsfilter"
+DEBUG: envp[11]="USER=cnachtigall"
+DEBUG: envp[12]="CHARSET=utf-8"
+DEBUG: envp[13]="FINAL_CONTENT_TYPE=application/vnd.cups-pdf"
+INFO: pdftopdf (PID 1736676) started.
+DEBUG: ppdFilterLoadPPD: Color profile qualifier determined from job and PPD data 'Gray..160dpi'
+DEBUG: ppdFilterLoadPPD: No ICC profiles specified in PPD
+DEBUG: ppdFilterLoadPPD: Searching for profile "-/-"...
+ERROR: ppdFilterLoadPPD: Last filter could not get determined, page logging by the PDF filter turned off.
+DEBUG: ppdFilterLoadPPD: Last filter determined by the PPD: None; Final data MIME type: application/vnd.cups-pdf => PDF filter will not log pages in page_log.
+INFO: ppdFilterEmitJCL: Filter function (PID 1736677) started.
+DEBUG: ppdFilterEmitJCL: Filter function (PID 1736677) exited with no errors.
+INFO: pdftopdf (PID 1736676) exited with no errors.

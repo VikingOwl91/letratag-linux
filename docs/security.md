@@ -28,6 +28,12 @@ normal cleanup interval reclaims old metadata. Completed documents are not prese
 
 ## Local service
 
+[Direct IPP](direct-ipp.md) is the recommended/default client workflow, without
+a system CUPS queue or scheduler. [CUPS integration](cups-experimental.md) is
+Experimental and uses the same PAPPL endpoint, not a different server or
+security boundary. libcups and command-line client dependencies do not require
+running the system scheduler. The service transport remains mock by default.
+
 The adapter explicitly binds to `127.0.0.1`, not `NULL`, `*`, or a machine-wide
 hostname. No raw socket, USB gadget, web interface, or mDNS advertisement. IPP
 on this loopback endpoint is unencrypted and does not authenticate individual
@@ -90,8 +96,10 @@ also serializes all jobs within the IPP process. Separate journal paths do
 the same device. Allow only one owner before the first real test.
 
 The journal is not a general idempotency service for separately submitted IPP
-requests. Before enabling a BLE-backed system queue, fault-inject lost IPP
-acknowledgments, scheduler resubmissions and cancellation during preflight.
+requests. Direct IPP clients must not automatically resubmit an uncertain job.
+Before enabling BLE-backed submissions, fault-inject lost IPP acknowledgments
+and cancellation during preflight. Experimental CUPS integration additionally
+requires scheduler-resubmission checks.
 Those flows need explicit acceptance and operator gating; do not infer
 end-to-end exactly-once physical printing from the mock transport tests.
 Matching a device address and GATT UUIDs is also not proof of cryptographic

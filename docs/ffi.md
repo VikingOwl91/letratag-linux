@@ -3,10 +3,19 @@
 Public boundary: `crates/letratag-printer/native/adapter.h` and `src/ffi.rs`.
 No PAPPL/CUPS structure is reproduced in Rust. C contains no Bluetooth logic,
 DYMO commands, or bit packing. Media/resolution values come from Rust's
-160 dpi layout profile (measured on the device 2026-10-20); C only exposes
-them through PAPPL. The transport kind (mock, or BlueZ with an explicit
+current 160 dpi software layout profile; C only exposes them through PAPPL.
+This value is not a universal hardware-pitch guarantee. Historical apparent
+feed values near 160 versus 316 dpi remain unresolved; see the
+[resolution investigation](evidence/resolution-investigation-2026-10-21.md).
+The transport kind (mock, or BlueZ with an explicit
 address, chunk mode and validated capability) is chosen in Rust before
 `lt_serve` starts; C is transport-agnostic.
+
+[Direct IPP](direct-ipp.md), the recommended/default workflow, and
+[Experimental CUPS integration](cups-experimental.md) share this same PAPPL
+server and ABI. Neither changes Rust packing, BlueZ behavior, or the default
+mock transport. libcups is a native dependency, not a requirement to run a
+system CUPS scheduler or create a queue.
 
 ## Ownership and lifetimes
 

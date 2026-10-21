@@ -1,0 +1,104 @@
+[
+  {
+    "file": "queue.ppd",
+    "source": "/tmp/opencode/letratag-geometry-offline/queue.ppd",
+    "size": 4233,
+    "sha256": "e3ce3fca588868b52a7913dfd9b71bd6d6775fbd341845908f8b90b57a741be0"
+  },
+  {
+    "file": "filtered-315.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/named315-ppd.pdf",
+    "size": 10227,
+    "sha256": "c0538b1a3d6bd3b87f45ebb78f70f4ad73d331578028504922c2f6d0ce4b0ebd"
+  },
+  {
+    "file": "filtered-400.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom400-ppd.pdf",
+    "size": 10230,
+    "sha256": "4acb64f38daedf66075bcbd3aa0aa8b85b9bb896b5e5d197204fd6332cc98778"
+  },
+  {
+    "file": "filtered-400-none.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/none.pdf",
+    "size": 2463,
+    "sha256": "23056c3f7780934c44835bf030469a85bdab8e7e7a7ce05a80762e1dd5d04e04"
+  },
+  {
+    "file": "filtered-400-custom-none.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom-none.pdf",
+    "size": 2463,
+    "sha256": "01ecacc6ddaa5546a3576511b5363b927d690a9ce010c5d639156bece877f25e"
+  },
+  {
+    "file": "filtered-315.qdf.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/named315-ppd.qdf.pdf",
+    "size": 12483,
+    "sha256": "a2c20598a54be7fd94ab3234da15c40156c6770683af7f43fdccb5ec7ea4e41d"
+  },
+  {
+    "file": "filtered-400.qdf.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom400-ppd.qdf.pdf",
+    "size": 12503,
+    "sha256": "cb6006eac6458fd4ac8bf910154702614a2f8834e2617b602a81de2c3c9f8a7d"
+  },
+  {
+    "file": "filter-315.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/named315-ppd.log",
+    "size": 1815,
+    "sha256": "7b45eccba88432690db7ef532fe5a2f11b4bea1cb1446d0c4f37fac189293eeb"
+  },
+  {
+    "file": "filter-400.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom400-ppd.log",
+    "size": 1809,
+    "sha256": "4474a6740f9b3799698d6c20b647312105e4fa56d159c0db4df1f1b47df42f40"
+  },
+  {
+    "file": "filter-400-none.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/none.log",
+    "size": 1585,
+    "sha256": "bbe0b0cea003e10f2b58f7548388829063f5bf2560394b6a4f9fa367ac79aa43"
+  },
+  {
+    "file": "filter-custom-none.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom-none.log",
+    "size": 1585,
+    "sha256": "0fedc73ba49c2132419b28bdca9d736103b052c7ddb8e321a20094d924ef964d"
+  },
+  {
+    "file": "filter-custom-alone.log",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom-media.log",
+    "size": 1809,
+    "sha256": "dd04a9dd1e86b56e68038f2b610409601e65eaa88041db00e0d2a27a09b204ce"
+  },
+  {
+    "file": "filter-custom-alone.pdf",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom-media.pdf",
+    "size": 10250,
+    "sha256": "94f2d63ed57065b46679e28c29f932709122a54f98c0ef3743cd0dbb1227e889"
+  },
+  {
+    "file": "ppd-probe.c",
+    "source": "/tmp/opencode/letratag-geometry-offline/ppd-probe.c",
+    "size": 713,
+    "sha256": "1fefb91e2149aa06fa3871f788bb815d4d7c94e2e8cc41d132518df86a7dadef"
+  },
+  {
+    "file": "filtered-315.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/named315-ppd-state/1792554756239299262.ble",
+    "size": 1310,
+    "sha256": "8def09f202de519738ff35a831dc1054f1568958111dc87f096deb4c0ec49f84"
+  },
+  {
+    "file": "filtered-400.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/custom400-ppd-state/1792554756181555932.ble",
+    "size": 1310,
+    "sha256": "eea11372e68905682bc3d0fcb4b76a783344f1d22fba177a90e0f1cfc2d66f93"
+  },
+  {
+    "file": "filtered-400-none.ble",
+    "source": "/tmp/opencode/letratag-geometry-offline/none-state/1792554756297647830.ble",
+    "size": 1653,
+    "sha256": "4cc591d4400b518c12dd6781616429b4f702dd4ce3b5f54c12789ec05fe92abb"
+  }
+]

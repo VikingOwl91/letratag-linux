@@ -1,0 +1,5 @@
+[diag] connected; usable value size 244 at 984.093504ms
+[diag] write 1/8 len=9 at 1.057588043s
+[diag] write 2/8 len=242 at 1.170516688s
+[diag] write 3/8 len=242 at 1.282593958s
+[diag] write 4/8 len=242 at 1.395603887s

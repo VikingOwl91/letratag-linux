@@ -1,0 +1,20 @@
+"/tmp/opencode/letratag-geometry-offline/direct.test":
+    Print-Job:
+        attributes-charset (charset) = utf-8
+        attributes-natural-language (naturalLanguage) = en
+        printer-uri (uri) = ipp://127.0.0.1:38672/ipp/print
+        requesting-user-name (nameWithoutLanguage) = forensic
+        job-name (nameWithoutLanguage) = filtered400
+        document-format (mimeMediaType) = application/pdf
+        media-col (collection) = {media-size={x-dimension=1200 y-dimension=5000} media-top-margin=0 media-bottom-margin=0 media-left-margin=0 media-right-margin=0}
+        print-scaling (keyword) = none
+    Offline direct IPP geometry control, mock transport only             [PASS]
+        RECEIVED: 211 bytes in response
+        status-code = successful-ok (successful-ok)
+        attributes-charset (charset) = utf-8
+        attributes-natural-language (naturalLanguage) = en
+        job-id (integer) = 4
+        job-uri (uri) = ipp://127.0.0.1:38672/ipp/print/4
+        job-state (enum) = pending
+        job-state-message (textWithoutLanguage) = Job pending.
+        job-state-reasons (keyword) = none

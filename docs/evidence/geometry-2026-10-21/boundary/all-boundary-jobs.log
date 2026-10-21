@@ -1,0 +1,29 @@
+"tests/ipp/all-jobs.test":
+    Get-Jobs:
+        attributes-charset (charset) = utf-8
+        attributes-natural-language (naturalLanguage) = en
+        printer-uri (uri) = ipp://127.0.0.1:38672/ipp/print
+        which-jobs (keyword) = all
+        requested-attributes (1setOf keyword) = job-id,job-state
+    Retained job metadata stays bounded                                  [PASS]
+        RECEIVED: 276 bytes in response
+        status-code = successful-ok (successful-ok)
+        attributes-charset (charset) = utf-8
+        attributes-natural-language (naturalLanguage) = en
+        job-id (integer) = 6
+        job-state (enum) = aborted
+        -- separator --
+        job-id (integer) = 5
+        job-state (enum) = completed
+        -- separator --
+        job-id (integer) = 4
+        job-state (enum) = completed
+        -- separator --
+        job-id (integer) = 3
+        job-state (enum) = completed
+        -- separator --
+        job-id (integer) = 2
+        job-state (enum) = completed
+        -- separator --
+        job-id (integer) = 1
+        job-state (enum) = completed

@@ -1,0 +1,18 @@
+serving BlueZ transport on 127.0.0.1:8631; chunk mode: Auto, validated printer cap: 244
+[diag] connected; usable value size 244 at 760.434919ms
+[diag] Transport:             BlueZ
+[diag] Write mode:            Request
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     495
+[diag] Validated printer cap: 244
+[diag] Effective write size:  244
+[diag] Chunk mode:            auto
+[diag] write 1/7 len=9 at 834.996109ms
+[diag] write 2/7 len=242 at 947.950564ms
+[diag] write 3/7 len=242 at 1.059996004s
+[diag] write 4/7 len=242 at 1.172940281s
+[diag] write 5/7 len=242 at 1.284956716s
+[diag] write 6/7 len=242 at 1.397965164s
+[diag] write 7/7 len=82 at 1.471981279s
+[diag] status [1b 52 00] at 7.660116214s
+[diag] outcome Err(Uncertain) at 37.660861004s

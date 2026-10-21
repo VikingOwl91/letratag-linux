@@ -1,0 +1,137 @@
+# Resolution investigation, 2026-10-21: open hardware finding
+
+Status: **OPEN.** The across-tape pitch is verified (160 dpi, stable). The
+feed pitch is not: 160 dpi on 2026-10-20 vs ~305-316 dpi on 2026-10-21
+(reproduced three times, battery-independent). The 200 dpi suggestion is
+refuted by measurement. The trigger of the feed-pitch change is
+unidentified. No rendering-pipeline change was made and no unverified
+workaround was introduced.
+
+## Question
+
+Is the DYMO LetraTag 200B's resolution 160 dpi (as previously measured),
+200 dpi (as suggested by the S2 device file), or something else — and is
+the apparent feed-resolution change an actual DPI change, or a feed
+stepping / raster interpretation behavior?
+
+## The 200 dpi suggestion is refuted
+
+Calibration measurements (analog calipers, 0.05 mm; images; three
+reproduced prints):
+
+| Feature | Dots | Measured | 200 dpi predicts | 160 dpi predicts |
+|---|---|---|---|---|
+| Tick spacing (feed) | 63 | 5.25 mm | 8.0 mm | 10.0 mm |
+| Rectangle width (feed) | 252 | 20.25 mm | 32.0 mm | 40.0 mm |
+| Rectangle height (across) | 30 | 4.75 mm | 3.81 mm | 4.76 mm |
+
+200 dpi matches none of the measurements. S2's `dpi: 200` (device file
+`LT_200B.json5`) is its engine's mm-to-dots rendering conversion — an
+assumption, not a verified device pitch; it matches neither the 2026-10-20
+nor the 2026-10-21 measurements.
+
+## Verified: across pitch is 160 dpi, stable
+
+* 2026-10-20: 16 ink rows = 2.25-2.5 mm (2.54 mm expected at 160 dpi).
+* 2026-10-21: rectangle height 30 dots = 4.75 mm (4.76 mm at 160 dpi).
+* The wire frame is 32 dots; 30 rows print (S1: "the printer can actually
+  print 30 pixels in height"; S2: `PROTOCOL_HEAD_FRAME = 32`,
+  `PRINTABLE_DOTS = 30`). At 160 dpi the printed band is 5.08 mm, centered
+  on the 12 mm tape; the 30-row content area is 4.76 mm.
+
+## The feed pitch conflict
+
+* **2026-10-20** (attempt 7 + batch A/B; fresh batteries; 400-feed-step
+  rasters; ruler, multi-segment, internally consistent): 152 ink dots =
+  24.30 mm = **158.9 dpi**; 400 dots = 66.55 mm total (~160 dpi).
+* **2026-10-21** (calibration prints; 315-feed-step rasters; calipers +
+  images; reproduced three times): 252-dot rectangle = 20.25 mm
+  (**~316 dpi**), 63-dot ticks = 5.25 mm (**~305 dpi**), 30-dot height =
+  4.75 mm (160 dpi across), total 43.15 mm, lead-in 10 mm.
+* **Battery ruled out:** a fresh-battery print (rechargeable cells at 100%)
+  reproduced the ~305-316 dpi feed pitch exactly.
+* 160 dpi feed is *impossible* for today's prints: 315 dots at 160 dpi =
+  50.0 mm of content cannot fit in the 43.15 mm label.
+
+## Mechanism analysis
+
+* **Protocol commands: identical.** Both sessions use byte-identical
+  command structure (`ESC s` preamble; `ESC D` with `bits_per_pixel=1`,
+  `alignment=0x02`, u32 feed count, u32 height 32; `ESC E`; `ESC A`;
+  `ESC Q`). The only protocol-level difference is the feed count
+  (400 on 10-20, 315 on 10-21). S2 documents the width field as
+  `feed_count` (the number of feed steps).
+* **Mechanical behavior: ruled out.** Roller slip or gear skipping would
+  produce non-uniform spacing; today's output is a uniform 2:1 horizontal
+  compression (rectangle width halved, tick spacing halved, height
+  unchanged, ticks mutually consistent).
+* **Feed stepping vs raster interpretation: both consistent.** The feed
+  step size halved (0.15875 mm to 0.0804 mm per feed step) at a similar
+  step rate (~51-55 steps/s): half-step micro-stepping, or equivalently
+  one raster column per half-step. The raster sent is verified correct
+  (mock captures decode to the exact pattern), so the difference is in the
+  printer's feed stepping or its interpretation of the feed count — not in
+  our encoding.
+* **Trigger: unidentified.** The only protocol-level correlate is the feed
+  count (400 vs 315). A feed-count threshold (width-dependent stepping) and
+  a persistent device-state change between the sessions are both possible;
+  they are confounded (all 10-20 prints were 400-step, all of today's are
+  315-step). The battery is ruled out.
+
+## The 400-column test was not achieved: unintended CUPS scaling
+
+The approved final test was one 400-feed-step calibration print (63.5 mm
+x 12 mm page = exactly 400 px at 160 dpi; media length 6350). The PDF was
+verified offline to render to 400 columns (mock capture: width 400,
+rectangle 252 dots at columns 10..262, ticks every 63 dots, band rows
+1..30). However, the transmitted raster was **315 columns** (job
+`letratag-e2e-48`: 7 writes, final 82 bytes = legacy body 1284 =
+width 315). An offline reproduction through CUPS with the identical
+command (`lp -o media=custom_12x63.5mm`) produces a 315-column raster
+with the pattern scaled 0.787x (rectangle ~199 dots, ink rows 4..27):
+**CUPS scaled the 63.5 mm page to the default 50 mm media** — unintended
+scaling by the scheduler, the exact failure mode the CUPS integration must
+avoid. The custom media length was not honored by the everywhere PPD.
+
+Consequences: the 400-feed-step raster never reached the printer, so the
+width-dependence hypothesis is untested. The printed label is the
+calibration pattern scaled to 315 columns (rectangle ~199 dots feed,
+~24 dots across).
+
+## Calibration print record (all 2026-10-21, CUPS path, legacy profile,
+Write Request, validated 244-byte cap, outcome uncertain by design)
+
+| Job | Print | Raster | Result |
+|---|---|---|---|
+| letratag-e2e-44 | Calibration 1 | 315 feed steps | label measured: feed ~305-316 dpi, across 160 dpi |
+| letratag-e2e-46 | Calibration re-print | 315 feed steps | exact replica of 44 (reproducibility confirmed) |
+| letratag-e2e-47 | Fresh-battery print | 315 feed steps | exact replica (battery ruled out) |
+| letratag-e2e-48 | 400-step test | intended 400, transmitted 315 (CUPS scaling) | width test not achieved |
+
+All journals archived with operator decisions under
+`test-output/acceptance/cal-state/archive*/`.
+
+## Open finding
+
+**The feed pitch of the LetraTag 200B is not fixed at 160 dpi: it is
+~305-316 dpi in the current device state (reproduced, battery-independent)
+and was 160 dpi on 2026-10-20. The trigger — a feed-count threshold
+(width-dependent stepping) or a persistent device-state change — is
+unidentified because feed count and session date are confounded, and the
+400-feed-step test print was invalidated by unintended CUPS scaling.**
+
+Until the trigger is identified, a single fixed layout dpi cannot be
+correct in both states, and no anisotropic resolution should be
+advertised. Recommended follow-ups (each needs explicit operator approval):
+
+1. Map the CUPS media handling so non-default label lengths reach the
+   printer unscaled (the everywhere PPD currently substitutes the default
+   50 mm media and scales the page) — a CUPS integration fix, not a
+   resolution change.
+2. One 400-feed-step calibration print through a path that provably
+   transmits 400 columns (e.g. the `hardware-send` path with a 400-column
+   raster, bypassing the CUPS media substitution), to test
+   width-dependence directly.
+3. If width-dependent: map the threshold and represent the piecewise feed
+   pitch explicitly. If state-dependent: identify the state (cassette,
+   tape roll, firmware counter) and document it.

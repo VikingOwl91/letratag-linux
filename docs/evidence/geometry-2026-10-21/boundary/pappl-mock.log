@@ -1,0 +1,73 @@
+serving mock transport on 127.0.0.1:38671 (no Bluetooth)
+[diag] connected; usable value size 512 at 247.188µs
+[diag] Transport:             Mock
+[diag] Write mode:            mock
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     512
+[diag] Validated printer cap: unknown
+[diag] Effective write size:  512
+[diag] Chunk mode:            unknown
+[diag] write 1/4 len=9 at 380.421µs
+[diag] write 2/4 len=501 at 389.799µs
+[diag] write 3/4 len=501 at 398.305µs
+[diag] write 4/4 len=287 at 406.751µs
+[diag] status [1b 52 00] at 432.991µs
+[diag] outcome Ok(()) at 439.473µs
+[diag] connected; usable value size 512 at 226.941µs
+[diag] Transport:             Mock
+[diag] Write mode:            mock
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     512
+[diag] Validated printer cap: unknown
+[diag] Effective write size:  512
+[diag] Chunk mode:            unknown
+[diag] write 1/4 len=9 at 300.831µs
+[diag] write 2/4 len=501 at 309.818µs
+[diag] write 3/4 len=501 at 317.723µs
+[diag] write 4/4 len=287 at 341.738µs
+[diag] status [1b 52 00] at 355.635µs
+[diag] outcome Ok(()) at 361.536µs
+[diag] connected; usable value size 512 at 282.366µs
+[diag] Transport:             Mock
+[diag] Write mode:            mock
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     512
+[diag] Validated printer cap: unknown
+[diag] Effective write size:  512
+[diag] Chunk mode:            unknown
+[diag] write 1/5 len=9 at 360.334µs
+[diag] write 2/5 len=501 at 368.81µs
+[diag] write 3/5 len=501 at 376.735µs
+[diag] write 4/5 len=501 at 384.57µs
+[diag] write 5/5 len=127 at 392.555µs
+[diag] status [1b 52 00] at 405.319µs
+[diag] outcome Ok(()) at 411.621µs
+[diag] connected; usable value size 512 at 239.985µs
+[diag] Transport:             Mock
+[diag] Write mode:            mock
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     512
+[diag] Validated printer cap: unknown
+[diag] Effective write size:  512
+[diag] Chunk mode:            unknown
+[diag] write 1/4 len=9 at 1.724542ms
+[diag] write 2/4 len=501 at 1.735352ms
+[diag] write 3/4 len=501 at 1.743327ms
+[diag] write 4/4 len=287 at 1.751243ms
+[diag] status [1b 52 00] at 1.769207ms
+[diag] outcome Ok(()) at 1.775358ms
+[diag] connected; usable value size 512 at 279.421µs
+[diag] Transport:             Mock
+[diag] Write mode:            mock
+[diag] Negotiated ATT MTU:    unknown
+[diag] Usable GATT value:     512
+[diag] Validated printer cap: unknown
+[diag] Effective write size:  512
+[diag] Chunk mode:            unknown
+[diag] write 1/5 len=9 at 368.339µs
+[diag] write 2/5 len=501 at 377.847µs
+[diag] write 3/5 len=501 at 386.674µs
+[diag] write 4/5 len=501 at 395.37µs
+[diag] write 5/5 len=127 at 403.446µs
+[diag] status [1b 52 00] at 417.372µs
+[diag] outcome Ok(()) at 423.103µs

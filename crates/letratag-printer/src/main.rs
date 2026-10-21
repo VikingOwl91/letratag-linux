@@ -143,7 +143,7 @@ enum Commands {
         #[arg(long)]
         diagnostics: bool,
     },
-    /// Print the CUPS integration settings and setup instructions.
+    /// Show Direct IPP guidance and Experimental CUPS settings (informational).
     CupsSettings {
         /// Local PAPPL endpoint port.
         #[arg(long, default_value_t = 8631)]

@@ -1,0 +1,12 @@
+[diag] connected; usable value size 244 at 4.246952495s
+[diag] write 1/8 len=9 at 4.320520121s
+[diag] write 2/8 len=242 at 4.432557788s
+[diag] write 3/8 len=242 at 4.546539214s
+[diag] write 4/8 len=242 at 4.657539763s
+[diag] write 5/8 len=242 at 4.770511734s
+[diag] write 6/8 len=242 at 4.882528411s
+[diag] write 7/8 len=242 at 4.9955259s
+[diag] write 8/8 len=181 at 5.070520282s
+[diag] status [1b 52 00] at 12.232741957s
+[diag] outcome Err(Uncertain) at 42.233891881s
+print outcome uncertain; operator inspection required, no automatic retry

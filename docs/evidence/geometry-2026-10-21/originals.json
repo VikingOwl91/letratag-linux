@@ -1,0 +1,177 @@
+[
+  {
+    "file": "calibration-315.pdf",
+    "source": "test-output/acceptance/calibration-160.pdf",
+    "size": 1343,
+    "source_mtime_ns": 1792548197899035473,
+    "sha256": "d23531b377df13791a85ab8c10f654cf8edead7516c8c70b173ad489d34e578e"
+  },
+  {
+    "file": "calibration-400.pdf",
+    "source": "test-output/acceptance/calibration-400.pdf",
+    "size": 1336,
+    "source_mtime_ns": 1792553908145500510,
+    "sha256": "07e49ee4113d41aaf97b0d2f14e2f31de2bbec7ed813f1240ad07505cdb7d1b8"
+  },
+  {
+    "file": "direct-315.ble",
+    "source": "/tmp/cal-check/1792548216104416744.ble",
+    "size": 1310,
+    "source_mtime_ns": 1792548216105397606,
+    "sha256": "f3fee8af69347cdf5b6a808860bc0c368a31a9cd2e061d2b9f3690251b047e34"
+  },
+  {
+    "file": "direct-400.ble",
+    "source": "/tmp/cal400-check/1792553908519061818.ble",
+    "size": 1653,
+    "source_mtime_ns": 1792553908527391945,
+    "sha256": "4cc591d4400b518c12dd6781616429b4f702dd4ce3b5f54c12789ec05fe92abb"
+  },
+  {
+    "file": "cups-400-reproduction.ble",
+    "source": "/tmp/cups400/state/1792554128899038131.ble",
+    "size": 1310,
+    "source_mtime_ns": 1792554128900220813,
+    "sha256": "eea11372e68905682bc3d0fcb4b76a783344f1d22fba177a90e0f1cfc2d66f93"
+  },
+  {
+    "file": "hello-linux.png",
+    "source": "test-output/hello-linux.png",
+    "size": 2326,
+    "source_mtime_ns": 1792519636786635558,
+    "sha256": "9722e3dfd711d795d64f338577921287582d9cacd054c2b0407e0efc1cc1f6e8"
+  },
+  {
+    "file": "hello-mock.ble",
+    "source": "test-output/hello-mock/1792514771648929798.ble",
+    "size": 1653,
+    "source_mtime_ns": 1792514771655508959,
+    "sha256": "6aae620dfb53a37debc7d0a98502fc949dd6ed8f0d44473d4253a3ba89c5a9ee"
+  },
+  {
+    "file": "previous-unreviewed-report.txt",
+    "source": "docs/evidence/resolution-investigation-2026-10-21.md",
+    "size": 7211,
+    "source_mtime_ns": 1792554237555598444,
+    "sha256": "88988725df876c9bff40f9ce377a74e5ccf37239ea06df43b8abe1808332e426"
+  },
+  {
+    "file": "hardware-2.log",
+    "source": "test-output/hardware-2-diag.log",
+    "size": 4278,
+    "source_mtime_ns": 1792522113188966690,
+    "sha256": "b9ade25ec5f6b5819b9b9f2313a2cf886a80d39d4955c0b566193b38059a5e7f"
+  },
+  {
+    "file": "hardware-3.log",
+    "source": "test-output/hardware-3-diag.log",
+    "size": 4308,
+    "source_mtime_ns": 1792523655614330591,
+    "sha256": "b5103c4be6a2f197713f6c017be6fa23144130dd96d83229eaa38a5f5174201b"
+  },
+  {
+    "file": "hardware-4.log",
+    "source": "test-output/hardware-4-diag.log",
+    "size": 4355,
+    "source_mtime_ns": 1792524514174017181,
+    "sha256": "b615deb6795c93c185a637a37b40eb0c3a2fcf519456c153e3cebd81bbb0d4c5"
+  },
+  {
+    "file": "hardware-5.log",
+    "source": "test-output/hardware-5-diag.log",
+    "size": 4353,
+    "source_mtime_ns": 1792524694173878797,
+    "sha256": "e2d66b85bf012acfb48c187e84e1fbbb2b6a9d25b37be5041d04d62028d994fd"
+  },
+  {
+    "file": "hardware-6.log",
+    "source": "test-output/hardware-6-diag.log",
+    "size": 541,
+    "source_mtime_ns": 1792524988185233465,
+    "sha256": "e0fb98e7bf851c8dba08b38fcd9cacc81b24ed8bce2e8337ca48481b01eaf7f8"
+  },
+  {
+    "file": "hardware-7.log",
+    "source": "test-output/hardware-7-diag.log",
+    "size": 544,
+    "source_mtime_ns": 1792525505181484533,
+    "sha256": "ce674c7e170637686c93aa72afa9f42436f331235eedfa9059fcfd8e09dbbc31"
+  },
+  {
+    "file": "hardware-8.log",
+    "source": "test-output/hardware-8-diag.log",
+    "size": 543,
+    "source_mtime_ns": 1792526525189134906,
+    "sha256": "d96037eba2a70dadac68d237c88b54c2b63961d1ba1395a980269c69a01ca962"
+  },
+  {
+    "file": "hardware-9.log",
+    "source": "test-output/hardware-9-diag.log",
+    "size": 545,
+    "source_mtime_ns": 1792526645198788956,
+    "sha256": "15e3c3d97021de39d0e348c9eeaeb7a40c560d272359228e539aa3375202559b"
+  },
+  {
+    "file": "hardware-10.log",
+    "source": "test-output/hardware-10-diag.log",
+    "size": 37,
+    "source_mtime_ns": 1792528944637517027,
+    "sha256": "76ec6d0319bba0dd4017ac1090dcdde11bb6bc6cbb187e9f8df40382e3d00178"
+  },
+  {
+    "file": "hardware-11.log",
+    "source": "test-output/hardware-11-diag.log",
+    "size": 218,
+    "source_mtime_ns": 1792529544511732434,
+    "sha256": "0b64f1788b29e748f3f42fa2d575d28f49d85cbcf7659181dd286e1a64d5dbf2"
+  },
+  {
+    "file": "hardware-12.log",
+    "source": "test-output/hardware-12-diag.log",
+    "size": 37,
+    "source_mtime_ns": 1792529065093171217,
+    "sha256": "76ec6d0319bba0dd4017ac1090dcdde11bb6bc6cbb187e9f8df40382e3d00178"
+  },
+  {
+    "file": "hardware-13.log",
+    "source": "test-output/hardware-13-diag.log",
+    "size": 540,
+    "source_mtime_ns": 1792530555191221217,
+    "sha256": "84b675fd5f9b80d822d2ba8a845e2024c36201999d0d878cbc44a5c337c0be22"
+  },
+  {
+    "file": "hardware-14.log",
+    "source": "test-output/hardware-14-diag.log",
+    "size": 542,
+    "source_mtime_ns": 1792530969194395096,
+    "sha256": "02455fd735c1f828090a9fd03dbdb84886df8b433a6c56a3f7db8b66bd8512c4"
+  },
+  {
+    "file": "job44.log",
+    "source": "test-output/acceptance/cal-server.log",
+    "size": 760,
+    "source_mtime_ns": 1792548432277161427,
+    "sha256": "8772fba6b4382c4962afe396d5bd7a090831dcf5ae56b71aa4c4ccd796fd3b6d"
+  },
+  {
+    "file": "job46.log",
+    "source": "test-output/acceptance/cal-server2.log",
+    "size": 765,
+    "source_mtime_ns": 1792552890537948136,
+    "sha256": "f4f13c3a3801bc7fae7a8bb6ab5632a82b7df5caff4425781768ed5436237499"
+  },
+  {
+    "file": "job47.log",
+    "source": "test-output/acceptance/cal-server3.log",
+    "size": 763,
+    "source_mtime_ns": 1792553378128710459,
+    "sha256": "b0286b976c21162494c2bb4eb179bd9b4ab8f24f058181a9b689917b5de8e5b0"
+  },
+  {
+    "file": "job48.log",
+    "source": "test-output/acceptance/cal-server4.log",
+    "size": 763,
+    "source_mtime_ns": 1792553991714222445,
+    "sha256": "1cafe14866e3e945252a1f6522693d6ed17f5f403455174c457b96e007c41c2e"
+  }
+]

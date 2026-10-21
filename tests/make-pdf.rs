@@ -1,12 +1,17 @@
 use std::io::Write;
 fn main() {
+    let feed_points = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "141.732283".into())
+        .parse::<f64>()
+        .unwrap();
+    assert!(feed_points.is_finite() && feed_points > 0.0);
     let mut pdf = b"%PDF-1.4\n".to_vec();
     let stream = "0 g 20 15 100 4 re f\n";
     let objects = [
         "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_string(),
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 141.732283 34.015748] /Resources << >> /Contents 4 0 R >>"
-            .to_string(),
+        format!("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {feed_points} 34.015748] /Resources << >> /Contents 4 0 R >>"),
         format!(
             "<< /Length {} >>\nstream\n{}endstream",
             stream.len(),

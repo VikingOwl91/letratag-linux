@@ -1,0 +1,102 @@
+*PPD-Adobe: "4.3"
+*FormatVersion: "4.3"
+*FileVersion: "2.4"
+*LanguageVersion: English
+*LanguageEncoding: ISOLatin1
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*FileSystem: False
+*PCFileName: "ippeve.ppd"
+*Manufacturer: "DYMO"
+*ModelName: "LetraTag 200B (BLE, experimental)"
+*Product: "(LetraTag 200B (BLE, experimental))"
+*NickName: "LetraTag 200B (BLE, experimental) - IPP Everywhere"
+*ShortNickName: "LetraTag 200B (BLE, experimental) - IPP Everywhere"
+*ColorDevice: False
+*cupsVersion: 2.4
+*cupsSNMPSupplies: False
+*cupsLanguages: "en_US"
+*APSupplies: "http://127.0.0.1:8631/"
+*cupsFilter2: "application/vnd.cups-pdf application/pdf 10 -"
+*cupsUrfSupported: "V1.5,W8,DEVW8,PQ3-4-5,FN3,IS9,OB10,RS160"
+*OpenUI *PageSize: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: 12x50mm
+*PageSize 12x50mm.Borderless: "<</PageSize[34.015748031496 141.732283464567]>>setpagedevice"
+*CloseUI: *PageSize
+*OpenUI *PageRegion: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: 12x50mm
+*PageRegion 12x50mm.Borderless: "<</PageSize[34.015748031496 141.732283464567]>>setpagedevice"
+*CloseUI: *PageRegion
+*DefaultImageableArea: 12x50mm
+*DefaultPaperDimension: 12x50mm
+*ImageableArea 12x50mm.Borderless: "0 0 34.015748031496 141.732283464567"
+*PaperDimension 12x50mm.Borderless: "34.015748031496 141.732283464567"
+*HWMargins: "0 0 0 0"
+*ParamCustomPageSize Width: 1 points 34.015748031496 34.015748031496
+*ParamCustomPageSize Height: 2 points 28.346456692913 566.929133858268
+*ParamCustomPageSize WidthOffset: 3 points 0 0
+*ParamCustomPageSize HeightOffset: 4 points 0 0
+*ParamCustomPageSize Orientation: 5 int 0 3
+*CustomPageSize True: "pop pop pop <</PageSize[5 -2 roll]/ImagingBBox null>>setpagedevice"
+*OpenUI *InputSlot: PickOne
+*OrderDependency: 10 AnySetup *InputSlot
+*DefaultInputSlot: MainRoll
+*InputSlot MainRoll: "<</MediaPosition 9>>setpagedevice"
+*en_US.InputSlot MainRoll/Main Roll: ""
+*InputSlot Auto: "<</MediaPosition 0>>setpagedevice"
+*en_US.InputSlot Auto/Automatic: ""
+*CloseUI: *InputSlot
+*DefaultResolution: 160dpi
+*OpenUI *cupsPrintQuality: PickOne
+*OrderDependency: 10 AnySetup *cupsPrintQuality
+*en_US.Translation cupsPrintQuality/Print Quality: ""
+*DefaultcupsPrintQuality: Normal
+*cupsPrintQuality Draft: "<</HWResolution[160 80]>>setpagedevice"
+*en_US.cupsPrintQuality Draft/Draft: ""
+*cupsPrintQuality Normal: "<</HWResolution[160 160]>>setpagedevice"
+*en_US.cupsPrintQuality Normal/Normal: ""
+*cupsPrintQuality High: "<</HWResolution[160 160]>>setpagedevice"
+*en_US.cupsPrintQuality High/High: ""
+*CloseUI: *cupsPrintQuality
+*% ColorModel from urf-supported
+*OpenUI *ColorModel: PickOne
+*OrderDependency: 10 AnySetup *ColorModel
+*en_US.Translation ColorModel/Color Mode: ""
+*ColorModel Gray: "<</cupsColorSpace 18/cupsBitsPerColor 8/cupsColorOrder 0/cupsCompression 0>>setpagedevice"
+*en_US.ColorModel Gray/Grayscale: ""
+*ColorModel DeviceGray: "<</cupsColorSpace 0/cupsBitsPerColor 8/cupsColorOrder 0/cupsCompression 0>>setpagedevice"
+*en_US.ColorModel DeviceGray/Device Gray: ""
+*DefaultColorModel: Gray
+*CloseUI: *ColorModel
+*APPrinterPreset Gray_with_Paper_Auto-Detect_-_Draft/Draft B&W: "
+  *cupsPrintQuality Draft *ColorModel Gray
+  com.apple.print.preset.graphicsType General
+  com.apple.print.preset.quality low
+  com.apple.print.preset.media-front-coating autodetect
+  com.apple.print.preset.output-mode monochrome"
+*End
+*APPrinterPreset Gray_with_Paper_Auto-Detect/Black and White: "
+  *cupsPrintQuality Normal *ColorModel Gray
+  com.apple.print.preset.graphicsType General
+  com.apple.print.preset.quality mid
+  com.apple.print.preset.media-front-coating autodetect
+  com.apple.print.preset.output-mode monochrome"
+*End
+*APPrinterPreset Photo_with_Paper_Auto-Detect/Photo: "
+  *cupsPrintQuality High *ColorModel Gray
+  com.apple.print.preset.graphicsType Photo
+  com.apple.print.preset.quality high
+  com.apple.print.preset.media-front-coating autodetect
+  com.apple.print.preset.output-mode color"
+*End
+*OpenUI *OutputBin: PickOne
+*OrderDependency: 10 AnySetup *OutputBin
+*DefaultOutputBin: FaceDown
+*DefaultOutputOrder: Normal
+*OutputBin FaceDown: ""
+*en_US.OutputBin FaceDown/Face Down: ""
+*PageStackOrder FaceDown: Normal
+*CloseUI: *OutputBin
+*cupsSingleFile: true

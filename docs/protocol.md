@@ -4,6 +4,11 @@ System-input scope: the approved PDF-first IPP endpoint does not accept
 PWG Raster or URF. Raster layout information below describes the Rust device
 core and reference research, not enabled direct raster-stream ingestion.
 
+[Direct IPP](direct-ipp.md) is the recommended/default client workflow;
+[CUPS integration](cups-experimental.md) is Experimental. Both use the same
+PAPPL server and unchanged Rust packing/BlueZ transport. The default transport
+remains mock. Client workflow choice does not establish physical dot pitch.
+
 Research date: 2026-10-18, hardware-verified additions marked inline
 (2026-10-20/21). This is not a manufacturer specification. The
 implementation separates modern and legacy source profiles rather than
@@ -294,25 +299,42 @@ independently from these source formats; they are **not device captures**.
 
 ## 6. Resolution and printable pixels
 
-32 is the transmitted frame height. 30 is S1's canvas convention, not a printhead
-measured here. S2 lists 200 dpi; historical sources and the existing template
-research report a different value of 160 dpi and anisotropic effects.
+32 is the transmitted frame height. 30 is S1's canvas convention, not a
+printhead measured here. S2 lists 200 dpi; historical sources and the template
+research report 160 dpi and anisotropic effects. A tape width of 12 mm is not
+the print height.
 
-**Measured on this device 2026-10-20 (attempt 7 plus calibration batch,
-operator-confirmed):** the dot pitch is ~160 dpi isotropic. Feed: 152 text
-columns = 24.3 mm = 158.9 dpi. Across: 16 text rows = 2.25-2.5 mm (2.54 mm
-expected at 160 dpi; within caliper precision). The earlier 200 dpi
-development layout resolution was wrong for this device: content laid out
-at 200 dpi printed 1.25x longer than intended along the feed. A tape width
-of 12 mm is not the print height.
+The current software layout uses 160 dpi (`geometry::RESOLUTION_DPI`), not a
+verified universal native pitch. The Oct 20 text measurements gave an apparent
+feed value of 158.9 dpi (152 occupied columns / 24.3 mm); 16 occupied rows
+across were reported as 2.25-2.5 mm. The earlier conclusion of isotropic
+160 dpi was stronger than this evidence supports. Later rectangle measurements,
+conditional on reconstructed post-filter pixels, imply about 311-316 dpi feed
+and 164-167 dpi across. Missing hardware payloads and differing measurement
+definitions leave the historical 160-versus-316 feed discrepancy unresolved.
+See the authoritative
+[resolution investigation](evidence/resolution-investigation-2026-10-21.md).
 
-**Recalibrated 2026-10-21:** the PDF layout now uses the measured 160 dpi
-(`document::LAYOUT_DPI`). 30 rows at 160 dpi yield a 4.76 mm content area.
-The remaining rows of the 12 mm page are discarded as unprintable margins
-only if they are white. Nonwhite content outside the area is rejected, not
-cropped or distorted. PDF and PWG Raster feed columns are not subsequently
-scaled to the content height. The printer additionally advances ~3.4 mm of
-lead-in beyond the raster's leading blank columns (measured 2026-10-20).
+That investigation demonstrated a separate software shrink: CUPS `pdftopdf`
+fit an unresolved 63.5-mm custom-media request to a 50-mm page, scaling both
+axes by about 0.787402 before Rust rendering. Direct/mock controls preserve
+the artwork; the offline scaling-none control removes that shrink. These
+controls do not establish historical scheduler-forwarded IPP attributes or
+resolve native pitch. No new firmware mode, anisotropic driver resolution, or
+transport correction follows from them.
+
+At the current layout resolution, 30 rows correspond nominally to 4.76 mm.
+The remaining rows of the rendered 12-mm PDF page are discarded only if white.
+Nonwhite content outside the centered band is rejected, not cropped or
+distorted. `document.rs` maps the retained pixels into the 32-row frame without
+resampling feed columns; `Raster::pack_columns` packs them without resizing.
+This is a software geometry contract, not a physical-size guarantee.
+Historical lead-in estimates (including about 3.4 mm beyond blank raster
+columns) are observations of particular labels, not fixed firmware geometry.
+
+Some existing `geometry.rs` comments still describe 160 dpi as measured native
+pitch. Those comments remain unchanged in this documentation-only update and
+are not validated by the investigation.
 
 ## 7. Feed, margins, and completion
 

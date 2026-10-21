@@ -1,0 +1,51 @@
+{
+  "operation": 10,
+  "path": "/ipp/print",
+  "headers": {
+    "Content-Length": "182",
+    "Content-Type": "application/ipp",
+    "Date": "Wed, 21 Oct 2026 04:00:39 GMT",
+    "Host": "127.0.0.1:38672",
+    "User-Agent": "CUPS/2.4.20 IPP/2.1",
+    "Accept-Encoding": "deflate, gzip, identity",
+    "Expect": "100-continue"
+  },
+  "attributes": [
+    {
+      "group": 1
+    },
+    {
+      "tag": 71,
+      "name": "attributes-charset",
+      "value": "utf-8"
+    },
+    {
+      "tag": 72,
+      "name": "attributes-natural-language",
+      "value": "en"
+    },
+    {
+      "tag": 69,
+      "name": "printer-uri",
+      "value": "ipp://127.0.0.1:38672/ipp/print"
+    },
+    {
+      "tag": 68,
+      "name": "which-jobs",
+      "value": "all"
+    },
+    {
+      "tag": 68,
+      "name": "requested-attributes",
+      "value": "job-id"
+    },
+    {
+      "tag": 68,
+      "name": "",
+      "value": "job-state"
+    }
+  ],
+  "document_offset": 182,
+  "document_length": 0,
+  "document_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
