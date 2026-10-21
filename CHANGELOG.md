@@ -75,5 +75,13 @@ No version bump, tag, publication or release was made.
   was corrected to 12.3 mm; the historical 160-to-315 transition is no
   longer treated as established.
 * Retained HELLO LINUX and RAW diagnostic fixtures remain byte-exact;
-  PNG CLI path unchanged. The v0.3.0 dimensional-accuracy NO-GO stands
-  pending hardware validation.
+  PNG CLI path unchanged.
+* Hardware validation (one operator-authorized calibration label via
+  Direct IPP): reference lines measured 10/20/40/50/100 mm against
+  commanded 9.9987/19.9975/39.9949/49.9937/99.9873 mm (residuals <=
+  0.013 mm; constant 315 DPI feed confirmed across 10-100 mm; 160 DPI
+  cross confirmed). The default calibration profile is hardware-validated
+  within measurement precision. See
+  [hardware validation](docs/evidence/hardware-validation-2026-10-21.md).
+  The v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this
+  evidence; the operator decides.

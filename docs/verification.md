@@ -189,6 +189,23 @@ passing; documentation links pass. The calibration diagnostic
 dimensional-accuracy NO-GO stands pending hardware validation
 (docs/calibration.md). No release, tag or publication.
 
+### Addendum 2026-10-21 (hardware validation: dimensional accuracy CONFIRMED)
+
+One operator-authorized calibration label print via Direct IPP
+(2026-10-21T06:56:19Z; 1364-column raster; 24 writes; status `1b 52 00`;
+uncertain outcome by design; journal archived). Operator measurements:
+reference lines 10 / 20 / 40 / 50 / 100 mm against commanded
+9.9987 / 19.9975 / 39.9949 / 49.9937 / 99.9873 mm — residuals <= 0.013 mm,
+within caliper precision, all implying 314.96 DPI feed (constant-DPI model
+confirmed across 10-100 mm; no offset inferred). Band height 4.75 mm vs
+4.7625 mm model (160 DPI cross confirmed). Lead-in 19 mm, lead-out ~9 mm,
+total ~127 mm, consistent and recorded separately from ink geometry. The
+default calibration profile is hardware-validated within measurement
+precision. Evidence:
+[hardware validation](evidence/hardware-validation-2026-10-21.md). The
+v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this evidence;
+the operator decides. No release, tag or publication.
+
 ## Historical verification record begins, 2026-10-18
 
 At that date the hardware-independent PDF-first candidate passed the build,
