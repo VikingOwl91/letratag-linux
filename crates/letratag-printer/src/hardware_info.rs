@@ -50,9 +50,11 @@ pub async fn run(
         .default_adapter()
         .await
         .map_err(|e| format!("default adapter: {e}"))?;
-    let device = adapter
-        .device(address)
-        .map_err(|e| format!("device handle: {e}"))?;
+    // Shared lifecycle: resolves the configured device, running bounded LE
+    // discovery when the adapter does not know it (2026-10-21 finding).
+    let device = letratag_transport::resolve_device(&adapter, address)
+        .await
+        .map_err(|e| format!("resolve device: {e}"))?;
     device
         .connect()
         .await

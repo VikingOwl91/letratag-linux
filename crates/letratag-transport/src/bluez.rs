@@ -161,11 +161,18 @@ impl BluezTransport {
             .default_adapter()
             .await
             .map_err(|_| Error::Connect)?;
-        let device = adapter.device(self.address).map_err(|_| Error::Connect)?;
+        let device = resolve_device(&adapter, self.address).await?;
         // Retain the handle before connecting so explicit cleanup also works
         // after a timeout or partially resolved profile.
         self.device = Some(device.clone());
-        device.connect().await.map_err(|_| Error::Connect)?;
+        // Reuse an existing link instead of failing: BlueZ rejects a second
+        // Connect while the device is already connected (a previous job's
+        // disconnect failed, or another local client holds the link). The
+        // printer is a single-central BLE peripheral, so an existing link is
+        // ours; a stale link fails at the first write and stays uncertain.
+        if !device.is_connected().await.map_err(|_| Error::Connect)? {
+            device.connect().await.map_err(|_| Error::Connect)?;
+        }
         let mut candidates = Vec::new();
         for service in device.services().await.map_err(|_| Error::Profile)? {
             let uuid = service.uuid().await.map_err(|_| Error::Profile)?;
