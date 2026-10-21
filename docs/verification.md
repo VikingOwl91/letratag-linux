@@ -102,6 +102,22 @@ new tests cover exact-address matching, stream end, event cap and timeout
 bounding of the discovery wait, and the distinct actionable
 `DeviceNotFound` error.
 
+### Addendum 2026-10-21 (end-to-end hardware acceptance through the serve path)
+
+The end-to-end acceptance print PDF → IPP/PAPPL → Rust → protocol → BlueZ →
+DYMO LetraTag 200B was executed with exactly one attempt and produced an
+operator-confirmed physical label (`ASSET-0001` / `DYMO LT200B`, 50 × 12 mm,
+160 dpi layout, legacy profile, auto chunk sizing with the validated 244-byte
+cap, 7 writes, single `1b 52 00` result 6.2 s after the last write, engine
+outcome uncertain by design, journal archived with the operator decision).
+Evidence:
+[evidence/hardware-acceptance-serve-2026-10-21.md](evidence/hardware-acceptance-serve-2026-10-21.md).
+A first submission the same day failed at connect with nothing transmitted
+(lost BlueZ device cache, blueman-applet discovery interference, printer
+auto-powered-off); the transport fix and the non-printing lifecycle test are
+recorded in the addendum above. The physical result is operator-confirmed;
+detailed ruler measurements of this label were not taken.
+
 ## Final isolated IPP results
 
 The independent executing verifier ran the full script successfully, exit 0:

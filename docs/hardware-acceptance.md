@@ -3,6 +3,9 @@
 Status: **first physical print achieved and operator-confirmed on
 2026-10-20** (attempt 7; see
 [evidence/hardware-attempt-7-2026-10-20-success.md](evidence/hardware-attempt-7-2026-10-20-success.md)).
+**End-to-end acceptance print through the IPP serve path achieved and
+operator-confirmed on 2026-10-21** (PDF → IPP/PAPPL → BlueZ → printer; see
+[evidence/hardware-acceptance-serve-2026-10-21.md](evidence/hardware-acceptance-serve-2026-10-21.md)).
 The layout is recalibrated to the measured 160 dpi (2026-10-21) and the
 BlueZ transport is wired into the IPP serve path behind an explicit
 `--transport bluez` operator choice (2026-10-21). Terminal-status
@@ -311,12 +314,14 @@ to 160 dpi; the BlueZ transport is wired into the IPP serve path behind
    the printer's ~3.4 mm lead-in, which the layout does not model.
 3. CUPS/PAPPL over BLE: the serve path accepts `--transport bluez` with an
    explicit address; mock stays the default and there is no fallback.
-   Remaining before a hardware-backed system queue: the completion policy
-   (item 1), device availability detection before accepting jobs,
-   D-Bus/BlueZ permission checks for the non-root service user
-   (docs/security.md), an end-to-end acceptance print through the serve
-   path (PDF → IPP/PAPPL → BLE), and separate operator approval for any
-   system-wide CUPS change.
+   **Done 2026-10-21:** the end-to-end acceptance print through the serve
+   path (PDF → IPP/PAPPL → BLE) produced an operator-confirmed label, with
+   auto chunk sizing (validated cap 244), honest transport diagnostics and
+   the conservative uncertain outcome. Remaining before a hardware-backed
+   system queue: the completion policy (item 1), device availability
+   detection before accepting jobs, D-Bus/BlueZ permission checks for the
+   non-root service user (docs/security.md), and separate operator approval
+   for any system-wide CUPS change.
 4. Host adapter stability: the Bluetooth adapter power-cycles every 60 s
    (blueman-applet polling plus USB autosuspend on the Realtek dongle, hci
    index churn). Observed 2026-10-21: a running blueman-applet stops BLE
@@ -344,6 +349,10 @@ Physical hardware test: executed 2026-10-20. First print succeeded (attempt
 7), calibration batch A/B confirmed repeatability and geometry. Evidence:
 docs/evidence/hardware-attempt-7-2026-10-20-success.md and
 docs/evidence/hardware-calibration-batch-2026-10-20.md.
+
+End-to-end serve-path acceptance print: executed 2026-10-21, one attempt,
+operator-confirmed physical label (`ASSET-0001` / `DYMO LT200B`). Evidence:
+docs/evidence/hardware-acceptance-serve-2026-10-21.md.
 
 BLE lifecycle test: executed 2026-10-21 (non-printing; see
 [protocol.md](protocol.md) section 2 "Connection lifecycle"). Discovery and
