@@ -1,0 +1,61 @@
+name: Feature request
+description: Propose a change to the driver, the IPP service or the documentation.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a change.
+
+        Please describe the problem you are trying to solve rather than only
+        the solution you have in mind. Proposals that fit the current scope
+        (the LetraTag 200B, Direct IPP, the mock-first workflow) are much
+        easier to act on.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what does the project do today?
+      placeholder: "When I ... I need ... but currently ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should change, from the user's point of view?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to achieve the same result, including doing nothing.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: hardware
+    attributes:
+      label: Hardware access
+      options:
+        - label: "This proposal needs real printer hardware to use or verify."
+        - label: "This proposal can be implemented and tested with the mock transport only."
+    validations:
+      required: true
+
+  - type: textarea
+    id: concerns
+    attributes:
+      label: Compatibility or safety concerns
+      description: >
+        Anything a reviewer should know: effects on other printers or
+        distributions, the conservative completion policy, the journal and
+        uncertain outcomes, the calibration model, or the BLE backends.
+    validations:
+      required: false

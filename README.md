@@ -17,6 +17,14 @@ Only the LetraTag 200B has been tested. The project is young: it has printed
 real labels, but it is not a production printer driver, and it never claims
 that a physical label came out of the printer.
 
+## What it prints
+
+![Software render of a label: the HELLO LINUX reference raster](docs/evidence/geometry-2026-10-21/hello-linux.png)
+
+*Software render of the project's HELLO LINUX reference raster, not a
+photograph of a printed label. The physical calibration and its measurement
+limits are in [calibration.md](docs/calibration.md).*
+
 ## Features
 
 * **Direct IPP printing.** A loopback IPP endpoint that accepts PDF only,
@@ -41,6 +49,18 @@ that a physical label came out of the printer.
   geometry (315 x 160 DPI), which was physically checked once for reference
   ink lengths from 10 mm to 100 mm. See
   [calibration.md](docs/calibration.md).
+
+## Compatibility
+
+| Item | Status |
+|---|---|
+| Printer | DYMO LetraTag 200B. The only model that has been physically validated. |
+| Operating system | Linux with BlueZ and D-Bus. CI runs on Ubuntu 24.04; the maintainer's workstation is Arch Linux. |
+| Transports | `mock` (default), BlueZ over D-Bus (default real hardware), `btleplug` (optional alternative). |
+| Printing path | Direct IPP, recommended. The system CUPS integration is Experimental and has a demonstrated media-fitting defect. |
+| Document formats | PDF over IPP. PNG only through the CLI preview and mock renderer. |
+| Physical validation | Reference ink lengths from 10 mm to 100 mm on one device, 2026-10-21. Not a general accuracy guarantee. |
+| Not supported | Other printer models, other operating systems, PWG/URF input, automatic cutting, automatic confirmation of a printed label. |
 
 ## Requirements
 
@@ -319,11 +339,19 @@ later corrected.
 
 ## Contributing, license and attribution
 
-The project has no contribution guide yet. For design questions, read the
-[decision record](docs/adr/0001-print-system.md); for defects and questions,
-use the repository's issue tracker. Please keep the historical evidence
-documents intact: they are the record of the measurements behind the current
-model.
+[CONTRIBUTING.md](CONTRIBUTING.md) describes the mock-only development
+workflow, the build and test commands, and what a pull request should
+contain. Bug reports and feature proposals have their own forms in the
+issue tracker, and hardware observations are welcome. Most contributions
+need no printer at all.
+
+Security problems are handled privately; see [SECURITY.md](SECURITY.md). The
+technical threat model is in [docs/security.md](docs/security.md).
+
+For design questions, read the
+[decision record](docs/adr/0001-print-system.md). Please keep the historical
+evidence documents intact: they are the record of the measurements behind
+the current model.
 
 Project code is MIT licensed, see [LICENSE](LICENSE). PAPPL and Poppler keep
 their own licenses, and the protocol work credits its sources in

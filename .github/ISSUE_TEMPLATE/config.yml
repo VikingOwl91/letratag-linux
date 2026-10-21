@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/VikingOwl91/letratag-linux/blob/main/SECURITY.md
+    about: Report privately, not in a public issue.
+  - name: Documentation and guides
+    url: https://github.com/VikingOwl91/letratag-linux#documentation
+    about: The Direct IPP guide, calibration procedure, hardware runbook and security model.
+  - name: Contributing
+    url: https://github.com/VikingOwl91/letratag-linux/blob/main/CONTRIBUTING.md
+    about: How to build, test and propose a change.
