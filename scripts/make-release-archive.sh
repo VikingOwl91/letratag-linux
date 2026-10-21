@@ -76,6 +76,11 @@ while pos < len(data):
         continue
     if name:
         header[136:148] = b"00000000000\x00"
+        # The ustar header checksum covers the whole header, so it has to be
+        # recomputed after the timestamp changed.
+        header[148:156] = b" " * 8
+        checksum = sum(header)
+        header[148:156] = ("%06o\x00 " % checksum).encode("ascii")
     out += header
     out += data[pos + 512:pos + 512 + ((size + 511) // 512) * 512]
     pos += 512 + ((size + 511) // 512) * 512
