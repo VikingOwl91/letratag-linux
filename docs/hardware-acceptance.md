@@ -568,6 +568,18 @@ one attempt through `lp` → CUPS → PAPPL → BLE, operator-confirmed physical
 (`CUPS-E2E-0001`). Evidence: section 7 above and
 test-output/acceptance/cups-state/archive/DECISION.md.
 
+v0.3.0 release acceptance prints: executed 2026-10-21, exactly two attempts
+through the Direct IPP path (normal 50 × 12-mm label; calibration label with
+explicit media-col 1200 × 5000), both operator-confirmed readable with
+correct orientation. The calibration label measured 20.25 × 4.75 mm against
+a transmitted 252-dot × 30-row pattern expected at 40.0 × 4.76 mm in the
+160-dpi layout: feed 49.4% short (~316 dpi apparent), across on target
+(~160 dpi), total 43.50 mm against ~53.4 mm expected. Preflight payload
+hashes, diagnostics and journal decisions are in
+test-output/release-state/archive/. This is a readability PASS and a
+dimensional-accuracy FAIL; see the
+[release readiness report](evidence/release-readiness-v0.3.0-2026-10-21.md).
+
 BLE lifecycle test: executed 2026-10-21 (non-printing; see
 [protocol.md](protocol.md) section 2 "Connection lifecycle"). Discovery and
 connection succeed without pairing; the device object is not guaranteed to

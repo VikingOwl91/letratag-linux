@@ -94,6 +94,28 @@ paths have no diff from the baseline. Tests used scratch-only builds and
 explicit mock loopback destinations; no BLE connection, physical print,
 system queue change, crate publication or release occurred.
 
+### Release acceptance v0.3.0, 2026-10-21: software PASS, dimensional accuracy FAIL (NO-GO)
+
+Phase 1 gates above were re-run and passed (86 default / 105 all-feature
+tests, formatting, clippy, both IPP suites, forensic decoder, offline CUPS
+geometry control, documentation links, scheduler-free Direct IPP
+demonstration). Exactly two operator-approved physical prints were executed
+through Direct IPP (normal 50 x 12 mm label; calibration label with
+explicit media-col 1200 x 5000), both with preflight payload hashes, Write
+Request at the validated 244-byte cap, legacy profile, write sequence
+`[9,242,242,242,242,242,82]`, status `1b 52 00`, uncertain outcome by
+design, and archived journals. Both labels were operator-confirmed
+readable with correct orientation. The calibration rectangle measured
+20.25 x 4.75 mm against a transmitted 252-dot x 30-row pattern expected at
+40.0 x 4.76 mm in the 160-dpi layout: the feed direction is 49.4% short
+(~316 dpi apparent), the across direction matches (~160 dpi), and the total
+is 43.50 mm against ~53.4 mm expected. This reproduces the anomalous feed
+pitch through Direct IPP, ruling out CUPS as its cause; the mechanism
+remains unresolved and no DPI compensation was applied. Full evidence:
+[release readiness report](evidence/release-readiness-v0.3.0-2026-10-21.md).
+Recommendation: NO-GO for v0.3.0 with dimensional-accuracy claims. No tag,
+publication or release was created.
+
 ## Historical verification record begins, 2026-10-18
 
 At that date the hardware-independent PDF-first candidate passed the build,

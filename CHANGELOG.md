@@ -26,3 +26,18 @@ Only informational CLI text and offline test helpers accompany the
 documentation. Rendering, protocol, transport, runtime configuration and
 versions are unchanged. No release or new physical acceptance is claimed.
 Historical evidence and the authoritative forensic reference are unchanged.
+
+### Release acceptance v0.3.0, 2026-10-21 (not released)
+
+Software gates passed (86 default / 105 all-feature tests, formatting,
+Clippy, Direct IPP and PDF-only IPP suites, forensic decoder, offline CUPS
+geometry control, documentation links). Two operator-approved physical
+Direct IPP prints were readable and correctly oriented, but the calibration
+label measured 20.25 x 4.75 mm against a 40.0 x 4.76 mm expectation:
+the feed direction is 49.4% short (~316 dpi apparent) while the across
+direction matches ~160 dpi. The anomaly reproduces through Direct IPP, so
+CUPS is ruled out as its cause; the mechanism remains unresolved and no DPI
+compensation was applied. Recommendation: NO-GO for dimensional-accuracy
+claims. Evidence:
+[release readiness report](docs/evidence/release-readiness-v0.3.0-2026-10-21.md).
+No version bump, tag, publication or release was made.
