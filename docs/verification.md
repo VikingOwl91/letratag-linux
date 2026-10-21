@@ -145,6 +145,21 @@ Evidence: [backend comparison](evidence/backend-comparison-2026-10-21.md),
 unchanged and not assumed fixed by the library change; hardware acceptance
 (phase 6) is pending explicit operator authorization.
 
+### Addendum 2026-10-21 (btleplug hardware acceptance and migration decision)
+
+One operator-authorized HELLO LINUX print through the btleplug backend
+(2026-10-21T05:54:10Z): transport btleplug, Write Request, validated cap
+244, writes `[9,242,242,242,242,242,242,181]` identical to the BlueZ
+reproduction, status `1b 52 00` at 9.91 s (7.16 s after last write),
+uncertain outcome by design, journal archived. Operator-confirmed readable,
+correct orientation; text width measured 12.3 mm — identical to the BlueZ
+backend's current-era result. The library change alone does not resolve the
+feed-pitch discrepancy; the BLE transport implementation is not a contributing
+cause at the application/GATT-operation level. Decision: **retain both
+backends; BlueZ remains the default**. Evidence:
+[hardware acceptance and decision](evidence/btleplug-hardware-acceptance-2026-10-21.md).
+No DPI, protocol or rendering change; no release, tag or publication.
+
 ## Historical verification record begins, 2026-10-18
 
 At that date the hardware-independent PDF-first candidate passed the build,

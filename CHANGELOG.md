@@ -54,3 +54,8 @@ No version bump, tag, publication or release was made.
   payloads, GATT operations and write mode on both backends; see
   [backend comparison](docs/evidence/backend-comparison-2026-10-21.md).
   The feed-pitch discrepancy is not assumed fixed by the library change.
+* Hardware acceptance: one operator-authorized HELLO LINUX print via
+  btleplug was readable and correctly oriented; text width 12.3 mm,
+  identical to the BlueZ backend. Decision: retain both backends, BlueZ
+  remains the default. See
+  [hardware acceptance](docs/evidence/btleplug-hardware-acceptance-2026-10-21.md).
