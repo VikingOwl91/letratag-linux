@@ -140,7 +140,9 @@ fn main() {
     // the same physical rectangle (40 mm x ~1.27 mm ink extent) at its own
     // oracle bounds, with the additional feed columns blank.
     assert!(long[0][620 * 4..].iter().all(|b| *b == 0));
-    println!("PASS: 4 direct-IPP mock captures, proportional artwork and 168 additional blank columns");
+    println!(
+        "PASS: 4 direct-IPP mock captures, proportional artwork and 168 additional blank columns"
+    );
 }
 
 #[cfg(test)]

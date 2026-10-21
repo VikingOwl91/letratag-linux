@@ -549,7 +549,18 @@ mod tests {
         ));
         assert!(!engine.is_blocked());
         assert!(state.lock().unwrap().writes.is_empty());
-        assert!(!dir.path().join("queue.lock").metadata().unwrap().is_file() || true);
+        let lock = dir.path().join("queue.lock");
+        let lock_meta = lock.metadata().unwrap();
+        assert!(lock_meta.is_file(), "engine keeps a private lock file");
+        assert!(
+            !lock.symlink_metadata().unwrap().file_type().is_symlink(),
+            "lock file is never a symlink"
+        );
+        assert_eq!(
+            lock_meta.permissions().mode() & 0o777,
+            0o600,
+            "lock file is readable and writable by the owner only"
+        );
         assert_eq!(
             fs::read_dir(dir.path())
                 .unwrap()
