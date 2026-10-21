@@ -170,14 +170,15 @@ they consume physical tape.
   portrait orientation. Leave orientation-requested unset and use scaling none.
   Page rotation 90/270 is rejected with an actionable error (export the page
   pre-rotated).
-- Documents are laid out in a **logical 200 x 200 DPI** coordinate system
-  (the resolution advertised to IPP clients). The pipeline renders directly
-  at the physical raster geometry of the [calibration profile](calibration.md)
-  (~315 DPI feed x ~160 DPI cross-tape by default; empirical estimates, not
-  specifications), exposed to clients as the `letratag-physical-resolution`
-  printer attribute. A 50 x 12 mm page renders to 620 feed columns x 76
-  cross-tape pixels at the default profile. Override with `--calibration
-  feed=<dpi>,cross=<dpi>`.
+- Documents are laid out in a **logical 200 x 200 DPI** coordinate system.
+  The pipeline renders directly at the physical raster geometry of the
+  [calibration profile](calibration.md) (~315 DPI feed x ~160 DPI cross-tape
+  by default; empirical estimates, not specifications). IPP clients see the
+  physical geometry in the standard `printer-resolution` attribute (the
+  resolution at which the printer prints) and the logical layout resolution
+  in the custom `letratag-logical-resolution` attribute. A 50 x 12 mm page
+  renders to 620 feed columns x 76 cross-tape pixels at the default profile.
+  Override with `--calibration feed=<dpi>,cross=<dpi>`.
 - The centered 30-row printable band is ~4.76 mm high (at 160 DPI
   cross-tape), below the 12 mm tape width. Nonwhite content outside that
   band is rejected, not cropped or squeezed into it.
@@ -185,9 +186,11 @@ they consume physical tape.
   through the physical feed pitch; page fitting cannot override requested
   physical dimensions, and inconsistent media aborts with an actionable error.
 - Current software limits are not hardware capability or dimensional-accuracy
-  guarantees. The calibration profile is empirical and awaits hardware
-  validation (see [calibration.md](calibration.md)); the v0.3.0
-  dimensional-accuracy NO-GO stands until then.
+  guarantees. The calibration profile is empirical. It was physically
+  validated once, for reference ink lengths from 10 mm to 100 mm on one
+  device (2026-10-21, see
+  [hardware validation](evidence/hardware-validation-2026-10-21.md)); that
+  evidence covers the calibrated Direct IPP path only.
 - Historical physical Direct IPP acceptance established a readable 50 x 12 mm
   source label through PAPPL/BlueZ, not measured physical accuracy. Mock
   controls establish the checked document/attribute/raster behavior only.

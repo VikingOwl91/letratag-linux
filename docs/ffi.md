@@ -3,10 +3,14 @@
 Public boundary: `crates/letratag-printer/native/adapter.h` and `src/ffi.rs`.
 No PAPPL/CUPS structure is reproduced in Rust. C contains no Bluetooth logic,
 DYMO commands, or bit packing. Media/resolution values come from Rust's
-current 160 dpi software layout profile; C only exposes them through PAPPL.
-This value is not a universal hardware-pitch guarantee. Historical apparent
-feed values near 160 versus 316 dpi remain unresolved; see the
-[resolution investigation](evidence/resolution-investigation-2026-10-21.md).
+calibration profile: the logical 200 DPI layout resolution and the physical
+raster geometry (315 x 160 DPI by default, empirically measured); C only
+exposes them through PAPPL. The physical values are not a universal
+hardware-pitch guarantee. The historical apparent feed values near 160
+versus 316 dpi were resolved by the 2026-10-21 calibration and hardware
+validation; see the
+[resolution investigation](evidence/resolution-investigation-2026-10-21.md)
+and the [validation evidence](evidence/hardware-validation-2026-10-21.md).
 The transport kind (mock, or BlueZ with an explicit
 address, chunk mode and validated capability) is chosen in Rust before
 `lt_serve` starts; C is transport-agnostic.

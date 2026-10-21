@@ -13,6 +13,19 @@ Current default (`CalibrationProfile::LT200B_2026_10_21`):
   252 columns = 20.25 mm).
 * Cross-tape axis: **160 DPI** (16 rows = 2.25 mm; 30 rows = 4.75 mm).
 
+## Why the raster is asymmetric
+
+The two axes are set by different parts of the device and are not expected
+to match. Across the tape, the frame height is fixed: 32 transmitted rows
+span the 12 mm tape width, which puts the cross-tape pitch at roughly
+160 DPI (30 active rows = 4.75 mm), while the printhead covers only a
+narrow band of that width. Along the feed, the pitch comes from how far
+the tape advances per column, measured at roughly 315 DPI (152 columns =
+12.3 mm). A square, isotropic 200 x 200 DPI raster was never a device
+property; 200 DPI is this project's logical layout convention for
+documents, and the physical raster is what the printer actually marks.
+Both are exposed to IPP clients (see [direct-ipp.md](direct-ipp.md)).
+
 ## The diagnostic
 
 `crates/letratag-printer/examples/calibration-label.rs` generates a
@@ -91,5 +104,14 @@ compensation.
   400-column labels) remain in the evidence archive and are not reconciled
   by the corrected text-width measurement; the profile targets current
   observed geometry.
-* The v0.3.0 dimensional-accuracy NO-GO stands until this procedure
-  demonstrates acceptable results on hardware.
+* This procedure was executed once, on 2026-10-21, with one operator-
+  authorized label: reference ink lengths from 10 mm to 100 mm came back
+  consistent with the constant-DPI model at the precision of the readings
+  (reported to the nearest millimetre). Evidence:
+  [hardware validation](evidence/hardware-validation-2026-10-21.md). That
+  is one device, one label and the feed axis; it is not a general
+  dimensional-accuracy guarantee, and the profile stays an empirical
+  calibration that can be refitted with `--calibration`.
+* Record the reading precision with every measurement. A calculated model
+  residual is not a measurement error, and residuals far below the reading
+  precision say nothing about physical accuracy.

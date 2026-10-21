@@ -11,13 +11,18 @@ No Python runtime, DYMO app, HomeOps, or Snipe-IT dependency.
 [hardware-acceptance.md](docs/hardware-acceptance.md)).** The default IPP
 destination is deliberately an explicitly named **mock destination**; the
 BlueZ transport is wired into the same serve path as an explicit,
-operator-selected option (`--transport bluez`). The unchanged software layout
-uses 160 dpi; the historical approximately160-versus316-dpi apparent feed
-discrepancy remains unresolved. Direct IPP is not a physical dimensional-
-accuracy guarantee. The completion policy stays conservative: the printer
-reports success even with the lid open, so no job is ever auto-confirmed as
-physically printed. This is not a production printer driver. See
-[verification.md](docs/verification.md) for the actual test status.
+operator-selected option (`--transport bluez`). The rendering pipeline uses
+a logical 200 x 200 DPI layout system mapped to the physical raster
+geometry of the device (315 x 160 DPI, empirically calibrated and
+physically validated for reference ink lengths from 10 mm to 100 mm, see
+[calibration.md](docs/calibration.md) and the
+[validation evidence](docs/evidence/hardware-validation-2026-10-21.md)).
+That validation covers one device and one label; it is not a universal
+dimensional-accuracy guarantee. The completion policy stays conservative:
+the printer reports success even with the lid open, so no job is ever
+auto-confirmed as physically printed. This is not a production printer
+driver. See [verification.md](docs/verification.md) for the actual test
+status.
 
 ## Architecture
 
@@ -142,7 +147,7 @@ bash scripts/test-ipp.sh
 # Fit a PNG/image proportionally into 400 feed columns and 30 active rows.
 cargo run --locked -p letratag-printer -- preview input.png preview.png --columns 400
 
-# Check 50 × 12 mm PDF geometry (160 dpi layout) without subsequent fit-to-page.
+# Check 50 × 12 mm PDF geometry (calibrated physical raster) without subsequent fit-to-page.
 cargo run --locked -p letratag-printer -- preview label.pdf preview-pdf.png --pdf
 
 ```
@@ -230,20 +235,25 @@ started automatically.
   12 × 50 mm. `media-col` describes specific custom lengths. These limits are
   software/test profile values, not measured hardware capabilities.
 * Documents are laid out in a **logical 200 × 200 DPI** coordinate system
-  (also the resolution advertised to IPP clients) and rendered directly at
-  the empirical physical raster geometry of the calibration profile
-  (~315 DPI feed × ~160 DPI cross-tape, measured 2026-10-21; estimates, not
-  specifications — see [geometry.rs](crates/letratag-printer/src/geometry.rs)
-  and [calibration.md](docs/calibration.md)). Override with `--calibration
-  feed=<dpi>,cross=<dpi>`.
+  and rendered directly at the empirical physical raster geometry of the
+  calibration profile (~315 DPI feed × ~160 DPI cross-tape, measured
+  2026-10-21; estimates, not specifications — see
+  [geometry.rs](crates/letratag-printer/src/geometry.rs) and
+  [calibration.md](docs/calibration.md)). Override with `--calibration
+  feed=<dpi>,cross=<dpi>`. IPP clients see the physical geometry in the
+  standard `printer-resolution` attribute (the resolution at which the
+  printer prints) and the logical layout resolution in the custom
+  `letratag-logical-resolution` attribute.
 * 30 active rows out of 32 wire rows, centered: the printable band is
   ~4.76 mm tall, below the 12 mm tape width. Nonwhite content outside the
   band is rejected, never silently cropped.
 * PDF: one 12 mm page, at most 200 mm long, rendered at the physical
   raster resolution (no resampling, no automatic fit-to-page). Page
   rotation 90/270 is rejected with an actionable error.
-* The physical calibration is empirical and awaits hardware validation;
-  software tests verify the mapping, never physical dimensional accuracy.
+* The physical calibration is empirical. It was physically validated once,
+  for reference ink lengths from 10 mm to 100 mm on one device
+  (2026-10-21); software tests verify the mapping, never physical
+  dimensional accuracy on other devices or media.
 * IPP accepts PDF only. PWG Raster and URF, including truncated headers and
   incomplete pages, are rejected before any submission. They are not enabled
   until complete-document validation can be demonstrated.

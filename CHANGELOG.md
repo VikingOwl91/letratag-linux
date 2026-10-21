@@ -63,13 +63,15 @@ No version bump, tag, publication or release was made.
 ### Rendering, 2026-10-21 (unreleased)
 
 * Implement calibrated 200-DPI logical rendering: a logical 200 x 200 DPI
-  layout coordinate system (advertised to IPP clients) mapped to an
-  independently configurable physical calibration profile (default
+  layout coordinate system (exposed to IPP clients as the custom
+  `letratag-logical-resolution` attribute) mapped to an independently
+  configurable physical calibration profile (default
   `LT200B_2026_10_21`: ~315 DPI feed x ~160 DPI cross-tape; empirical
   estimates, not specifications). PDFs render directly at the physical
-  raster resolution; the media check uses the physical feed pitch; the
-  physical geometry is exposed as the `letratag-physical-resolution` printer
-  attribute. See [architecture](docs/rendering-architecture-200dpi.md) and
+  raster resolution; the media check uses the physical feed pitch. The
+  standard `printer-resolution` attribute advertises the physical raster
+  geometry (315 x 160 dpi), which is the resolution at which the printer
+  prints. See [architecture](docs/rendering-architecture-200dpi.md) and
   [calibration](docs/calibration.md).
 * The original 2026-10-20 HELLO LINUX text-width measurement (~24.3 mm)
   was corrected to 12.3 mm; the historical 160-to-315 transition is no
@@ -77,11 +79,13 @@ No version bump, tag, publication or release was made.
 * Retained HELLO LINUX and RAW diagnostic fixtures remain byte-exact;
   PNG CLI path unchanged.
 * Hardware validation (one operator-authorized calibration label via
-  Direct IPP): reference lines measured 10/20/40/50/100 mm against
-  commanded 9.9987/19.9975/39.9949/49.9937/99.9873 mm (residuals <=
-  0.013 mm; constant 315 DPI feed confirmed across 10-100 mm; 160 DPI
-  cross confirmed). The default calibration profile is hardware-validated
-  within measurement precision. See
+  Direct IPP): reference lines reported as 10/20/40/50/100 mm against
+  commanded 9.9987/19.9975/39.9949/49.9937/99.9873 mm (readings reported to
+  the nearest millimetre; calculated model residuals <= 0.013 mm; constant
+  315 DPI feed confirmed across 10-100 mm; 160 DPI cross confirmed). The
+  calibrated Direct IPP PDF path is physically validated for reference ink
+  lengths from 10 mm to 100 mm, consistent with the raster model within the
+  precision of the measurements performed. See
   [hardware validation](docs/evidence/hardware-validation-2026-10-21.md).
   The v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this
   evidence; the operator decides.

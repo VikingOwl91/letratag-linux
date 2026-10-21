@@ -25,15 +25,20 @@ after explicit operator authorization. Exactly one print; no retries.
 ## Operator results
 
 Label emerged; five reference lines visible; orientation correct.
-Calipers (0.05 mm):
+Calipers with 0.05 mm resolution were used, but the readings below were
+reported to the nearest millimetre:
 
-| Wire row | Reference | Commanded columns | Model ink (mm) | Measured (mm) | Residual (mm) | Implied feed DPI |
+| Wire row | Reference | Commanded columns | Model ink (mm) | Reported reading (mm) | Model residual vs reported value (mm) | Implied feed DPI |
 |---|---|---|---|---|---|---|
 | 3 | 10 mm | 124 | 9.9987 | 10 | -0.0013 | 314.96 |
 | 9 | 20 mm | 248 | 19.9975 | 20 | -0.0025 | 314.96 |
 | 15 | 40 mm | 496 | 39.9949 | 40 | -0.0051 | 314.96 |
 | 21 | 50 mm | 620 | 49.9937 | 50 | -0.0063 | 314.96 |
 | 27 | 100 mm | 1240 | 99.9873 | 100 | -0.0127 | 314.96 |
+
+The "model residual" column is a calculated difference between the raster
+model and the reported reading. It is not a measurement error and not a
+statement about physical accuracy below the resolution of the readings.
 
 * Printable band height: ~4.75 mm measured; model 4.7625 mm (30 rows at
   160 DPI cross-tape) -> implied 160.4 DPI. Confirmed.
@@ -48,9 +53,16 @@ Calipers (0.05 mm):
 
 * **Constant-DPI model confirmed across 10-100 mm.** All five implied feed
   pitches are 314.96 DPI (the 0.04 DPI spread from 315.00 is the
-  rounding of the commanded columns, not a measurement trend). Residuals
-  are <= 0.013 mm, within caliper precision (0.05 mm). No fixed offset is
-  needed; none is inferred.
+  rounding of the commanded columns, not a measurement trend). No fixed
+  offset is needed; none is inferred.
+* **Accuracy scope.** The readings were reported to the nearest millimetre,
+  so the precision of the measurements performed is about +/-0.5 mm, not the
+  0.05 mm caliper resolution. Every reported value agrees exactly with the
+  requested length at that precision. The calculated model residuals
+  (<= 0.013 mm across 10-100 mm) describe how closely the raster model
+  reproduces the requested lengths; they are two orders of magnitude finer
+  than the readings they are compared against and therefore say nothing
+  about sub-0.05 mm physical accuracy.
 * **Cross-tape pitch confirmed** at ~160 DPI (band 4.75 vs 4.7625 mm).
 * **Ink geometry, blank feed and total cut length are consistent but
   distinct**: the ~9 mm lead-in/lead-out are printer behavior outside the
@@ -62,11 +74,13 @@ Calipers (0.05 mm):
 ## Consequences
 
 * The default calibration profile (`LT200B_2026_10_21`: feed 315 /
-  cross 160) is **hardware-validated** within measurement precision.
+  cross 160) is **hardware-validated**: for reference ink lengths from
+  10 mm to 100 mm the printed result is consistent with the raster model
+  within the precision of the measurements performed.
 * This is the first physical validation of dimensional accuracy in the
   project. The v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this
   evidence; the operator decides.
-* Remaining limits: one label, one device state; the profile remains an
-  empirical calibration (docs/calibration.md) adjustable with
-  `--calibration`; total cut length includes printer lead-in/lead-out that
-  the ink calibration does not control.
+* Remaining limits: one label, one device state, feed axis only; the
+  profile remains an empirical calibration (docs/calibration.md) adjustable
+  with `--calibration`; total cut length includes printer lead-in/lead-out
+  that the ink calibration does not control.

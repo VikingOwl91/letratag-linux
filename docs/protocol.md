@@ -311,8 +311,9 @@ the print height.
 text-width measurement (24.3 mm) was erroneous; the corrected width is
 12.3 mm, consistent with every subsequent print across the Python/Bleak
 prototype and both Rust BLE backends. The rendering pipeline now separates a
-**logical 200 × 200 DPI layout** coordinate system (advertised to IPP
-clients) from the **physical raster geometry** in a named, independently
+**logical 200 × 200 DPI layout** coordinate system (exposed to IPP clients
+as the custom `letratag-logical-resolution` attribute) from the
+**physical raster geometry** in a named, independently
 configurable `CalibrationProfile` (empirical estimates measured 2026-10-21:
 ~315 DPI feed, ~160 DPI cross-tape; not manufacturer specifications). PDFs
 render directly at the physical raster resolution; the profile maps

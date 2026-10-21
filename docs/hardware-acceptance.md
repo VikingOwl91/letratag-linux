@@ -19,12 +19,16 @@ forensic evidence records mock-only direct IPP controls for both 50 × 12 mm
 (`media-col` 1200 × 5000) and 63.5 × 12 mm (1200 × 6350), producing 315 and
 400 columns respectively. The 63.5-mm direct path has no physical acceptance.
 
-The software uses a 160-dpi layout model. Native isotropic pitch is not
-established: the historical ~159/160-dpi text inference conflicts with later
-conditional apparent feed values around 316 dpi. CUPS `pdftopdf` demonstrably
-shrinks the final calibration artwork by 0.787402 on both axes, but that
-finding does not resolve the older pitch conflict. See the authoritative
-[geometry investigation](evidence/resolution-investigation-2026-10-21.md).
+The software uses a calibrated model: a logical 200 x 200 DPI layout mapped
+to the measured physical geometry (315 x 160 DPI, profile
+`LT200B_2026_10_21`). The historical ~159/160-dpi text inference versus the
+later conditional apparent feed values around 316 dpi was resolved by the
+operator's corrected 12.3 mm text measurement and the 2026-10-21 calibration
+and validation. CUPS `pdftopdf` demonstrably
+shrinks the final calibration artwork by 0.787402 on both axes; that is a
+separate CUPS filter defect and remains open. See the authoritative
+[geometry investigation](evidence/resolution-investigation-2026-10-21.md)
+and the [validation evidence](evidence/hardware-validation-2026-10-21.md).
 Historical measurements below are retained, not promoted to a resolved
 calibration or a DPI fix.
 
@@ -510,25 +514,31 @@ and post-filter geometry still need authorized mock-only acceptance.
 
 Hardware bring-up produced readable output; the shared PAPPL endpoint can
 submit through Rust and BLE behind explicit `--transport bluez`. Direct IPP
-is the recommended workflow, not a hardware-backed CUPS system queue.
-The current 160-dpi software model remains unchanged. Still open:
+is the recommended workflow, not a hardware-backed CUPS system queue. The
+software model is now the calibrated one (logical 200 x 200 DPI layout
+mapped to the physical profile `LT200B_2026_10_21`, feed 315 / cross 160
+DPI), and that geometry was physically validated once for reference ink
+lengths from 10 mm to 100 mm ([evidence](evidence/hardware-validation-2026-10-21.md)).
+Still open:
 
 1. Terminal-status auto-completion policy: resolve the PRINTING-ack
    ambiguity (failure-case observations with fresh batteries, e.g. lid
    open), then decide whether a code-0 result marks the journal completed.
    Until then the hardware path stays operator-in-the-loop (uncertain
    outcome plus inflight journal).
-2. Physical geometry: **unresolved**, not a completed recalibration gate.
-   PDF page geometry, IPP conversion and tests derive from the software's
-   160-dpi constant. Historical ~159/160-dpi text inference and later
-   conditional ~316-dpi feed estimates do not establish universal native
-   pitch. Recover existing payload/measurement provenance first; do not change
-   DPI or stretch an axis from these records. Historical extra lead-in
-   (~3.4 mm) and actual cut length are not modeled physical guarantees.
+2. Physical geometry beyond the validated range: the calibration is
+   empirical and covers one device, one label and reference ink lengths
+   from 10 mm to 100 mm on the feed axis. Other lengths, other devices,
+   other media and the cross-tape axis beyond the printable band are not
+   validated. The historical extra lead-in (~3.4 mm) and the actual cut
+   length are printer behavior outside the ink calibration and are not
+   modeled physical guarantees.
 3. Direct IPP production acceptance: readable 50 × 12-mm output is recorded,
-   not measured accuracy. The 63.5-mm direct control is mock-only. Check
-   non-root service-user D-Bus/BlueZ permissions (see [security.md](security.md)),
-   availability, cancellation and lost acknowledgments before unattended use.
+   and the calibrated path was validated for ink lengths, but there is no
+   unattended-operation acceptance. The 63.5-mm direct control is mock-only.
+   Check non-root service-user D-Bus/BlueZ permissions (see
+   [security.md](security.md)), availability, cancellation and lost
+   acknowledgments before unattended use.
    Experimental CUPS additionally needs resolved forwarded media-col and
    complete post-filter geometry checks against mock, different lengths and
    application/dialog behavior. Any system-wide queue change needs separate

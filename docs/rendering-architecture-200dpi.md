@@ -136,6 +136,16 @@ the same physical label (tested).
   dimensions (print-scaling=none is the only supported mode; mismatches
   abort with an actionable error).
 
+> Superseded 2026-10-21 (v0.3.0 release audit): the two bullets above are
+> the plan as written before implementation. The shipped behaviour puts the
+> **physical** geometry (315 x 160 dpi) in the standard `printer-resolution`
+> attribute, because that attribute means the resolution at which the
+> printer prints (RFC 8011), and moves the logical layout resolution to the
+> custom `letratag-logical-resolution` attribute. The custom
+> `letratag-physical-resolution` attribute was dropped as redundant with the
+> standard attribute. The plan text is kept unchanged as the record of the
+> decision at planning time.
+
 ### CLI
 
 `serve`, `mock` and `preview` gain `--calibration feed=<dpi>,cross=<dpi>`

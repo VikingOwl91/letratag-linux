@@ -36,10 +36,13 @@ do not establish dimensional accuracy.
 | `Custom.12x63.5mm` alone | Selected a custom size in a libppd probe, but the filter control produced A4 and the renderer rejected it | Renaming the option alone is not a verified workaround |
 
 No fully verified custom-length CUPS workaround is claimed. Use Direct IPP
-with explicit media-col for the checked software route instead. The older
-160-versus-316-dpi apparent feed discrepancy is still open, including on
-interpretations of the historical hardware evidence. Do not change native
-DPI, introduce anisotropic scaling, or adjust BLE settings to compensate.
+with explicit media-col for the checked software route instead. The
+160-versus-316-dpi apparent feed discrepancy of the historical hardware
+evidence was resolved by the 2026-10-21 calibration and hardware
+validation; that work validated the Direct IPP path, not the CUPS
+scheduler path, so the CUPS limitations listed above stand. Do not change
+native DPI, introduce anisotropic scaling, or adjust BLE settings to
+compensate.
 
 Actual historical hardware payload bytes and scheduler-forwarded media-col
 were not retained. The forensic investigation's full scheduler replay was

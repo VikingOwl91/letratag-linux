@@ -11,8 +11,12 @@ no physical printing, hardware operation, queue changes or service activation.
 
 The current evidence boundary is:
 
-* Direct IPP 50 × 12 mm: one operator-confirmed readable physical label;
-  detailed measurements were not taken.
+* Direct IPP 50 × 12 mm: one operator-confirmed readable physical label.
+* Direct IPP calibrated path: one operator-authorized calibration label
+  (2026-10-21) with reference ink lengths from 10 mm to 100 mm, measured and
+  consistent with the raster model within the precision of the readings
+  ([evidence](evidence/hardware-validation-2026-10-21.md)). One device, one
+  label, feed axis only.
 * Direct IPP 50 × 12 mm and 63.5 × 12 mm: existing mock controls captured
   explicit media-col 1200 × 5000 and 1200 × 6350, yielding 315 and 400 columns.
   The longer direct control is not a physical acceptance result.
@@ -23,9 +27,11 @@ The current evidence boundary is:
   400-column artwork offline; that control is not a complete production fix.
   Historical scheduler-forwarded attributes and hardware payload bytes remain
   missing, as does full live scheduler-to-mock acceptance for this correction.
-* The software still uses 160 dpi. Historical ~159/160-dpi text inference
-  versus later conditional ~316-dpi apparent feed remains unresolved; native
-  isotropic pitch and a DPI fix are not established.
+* The software uses a calibrated model: a logical 200 × 200 DPI layout mapped
+  to the measured physical geometry (315 × 160 DPI, profile
+  `LT200B_2026_10_21`). The historical ~159/160-dpi text inference versus the
+  later conditional ~316-dpi apparent feed was resolved by the operator's
+  corrected 12.3 mm text measurement and the 2026-10-21 calibration.
 * Hardware outcomes stay uncertain/inflight until operator inspection.
   `abort-job` is not a guarantee against every client/scheduler resend, and
   the journal is not cross-request idempotency. Current queue state has not
@@ -165,11 +171,12 @@ No DPI, protocol or rendering change; no release, tag or publication.
 The original 2026-10-20 HELLO LINUX text-width measurement (~24.3 mm) was
 corrected by the operator to 12.3 mm, consistent with all subsequent prints
 across the Python/Bleak prototype and both Rust BLE backends. The pipeline
-now separates a logical 200 x 200 DPI layout coordinate system (advertised
-to IPP clients; exposed as `printer-resolution-supported = 200dpi`) from the
+now separates a logical 200 x 200 DPI layout coordinate system (exposed to
+clients as the custom `letratag-logical-resolution` attribute) from the
 empirical physical raster geometry in a named, independently configurable
 `CalibrationProfile` (default `LT200B_2026_10_21`: feed 315 / cross 160 DPI;
-exposed to clients as the `letratag-physical-resolution` printer attribute).
+advertised in the standard `printer-resolution-supported = 315x160dpi`,
+because that attribute means the resolution at which the printer prints).
 PDFs render directly at the physical raster resolution (`pdftoppm
 -scale-to-x/-scale-to-y`, exact anisotropic output, no resampling); the media
 check uses the physical feed pitch; page rotation 90/270 is rejected with an
@@ -193,15 +200,18 @@ dimensional-accuracy NO-GO stands pending hardware validation
 
 One operator-authorized calibration label print via Direct IPP
 (2026-10-21T06:56:19Z; 1364-column raster; 24 writes; status `1b 52 00`;
-uncertain outcome by design; journal archived). Operator measurements:
-reference lines 10 / 20 / 40 / 50 / 100 mm against commanded
-9.9987 / 19.9975 / 39.9949 / 49.9937 / 99.9873 mm — residuals <= 0.013 mm,
-within caliper precision, all implying 314.96 DPI feed (constant-DPI model
-confirmed across 10-100 mm; no offset inferred). Band height 4.75 mm vs
-4.7625 mm model (160 DPI cross confirmed). Lead-in 19 mm, lead-out ~9 mm,
-total ~127 mm, consistent and recorded separately from ink geometry. The
-default calibration profile is hardware-validated within measurement
-precision. Evidence:
+uncertain outcome by design; journal archived). Operator measurements,
+reported to the nearest millimetre: reference lines 10 / 20 / 40 / 50 /
+100 mm against commanded 9.9987 / 19.9975 / 39.9949 / 49.9937 / 99.9873 mm.
+Calculated model residuals <= 0.013 mm; every reported value agrees with
+the requested length at the reporting precision (about +/-0.5 mm). All five
+imply 314.96 DPI feed (constant-DPI model confirmed across 10-100 mm; no
+offset inferred). Band height 4.75 mm vs 4.7625 mm model (160 DPI cross
+confirmed). Lead-in 19 mm, lead-out ~9 mm, total ~127 mm, consistent and
+recorded separately from ink geometry. The default calibration profile is
+hardware-validated: for reference ink lengths from 10 mm to 100 mm the
+result is consistent with the raster model within the precision of the
+measurements performed. Evidence:
 [hardware validation](evidence/hardware-validation-2026-10-21.md). The
 v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this evidence;
 the operator decides. No release, tag or publication.

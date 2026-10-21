@@ -81,7 +81,9 @@ production CUPS submission. Experimental CUPS acceptance requires post-filter
 geometry and actual forwarded media dimensions to be checked against a
 mock-only destination before any separately authorized hardware use.
 
-The older apparent feed-pitch discrepancy near 160 versus 316 dpi remains
-unresolved. Direct submission avoids this CUPS filter stage; it does not prove
-native hardware pitch. A synthetic PDF is used in the isolated IPP test; the
+The apparent feed-pitch discrepancy near 160 versus 316 dpi was resolved by
+the operator's corrected 12.3 mm text measurement and the 2026-10-21
+calibration and validation of the Direct IPP path. Direct submission avoids
+the CUPS filter stage, whose own media-fitting defect is still open. A
+synthetic PDF is used in the isolated IPP test; the
 real template remains a separate integration and hardware test.
