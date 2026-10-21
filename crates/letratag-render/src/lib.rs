@@ -5,6 +5,7 @@
 //! minimum), including any existing white margins, and are centered on the full
 //! canvas. An odd spare pixel goes on the right or bottom. Scaling uses nearest
 //! neighbors sampled at pixel centers. No text, font, or PDF rendering is done.
+#![doc = include_str!("../README.md")]
 
 use std::io::Cursor;
 
