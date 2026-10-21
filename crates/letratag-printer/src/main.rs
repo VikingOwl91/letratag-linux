@@ -59,6 +59,7 @@ enum ChunkModeChoice {
 /// Resolve --chunk-mode/--max-write into the transport chunk mode.
 /// --max-write alone implies manual; combining it with auto or safe is a
 /// configuration error, and manual without --max-write is incomplete.
+#[cfg(any(feature = "pappl", feature = "ble"))]
 fn resolve_chunk_mode(
     mode: Option<ChunkModeChoice>,
     max_write: Option<usize>,

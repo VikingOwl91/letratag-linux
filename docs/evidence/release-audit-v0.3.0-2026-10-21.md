@@ -9,10 +9,9 @@ were performed by this audit.
 
 * Starting point: `596a380` "docs: record hardware validation confirming
   dimensional accuracy".
-* Audit branch head at the time of writing: `0dacd63` (this document is
-  committed on top of it).
-* Working tree: clean, no uncommitted changes besides this report and the
-  release notes.
+* The audit was performed on the commits listed in section 4, ending with
+  the release-candidate commit on the default branch.
+* Working tree at the end of the audit: clean.
 
 ## 2. Findings
 
