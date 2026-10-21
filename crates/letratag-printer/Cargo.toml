@@ -12,6 +12,7 @@ build = "build.rs"
 default = []
 pappl = []
 ble = ["letratag-transport/ble", "dep:bluer", "dep:futures-util"]
+btleplug = ["letratag-transport/btleplug"]
 
 [dependencies]
 letratag-protocol.workspace = true

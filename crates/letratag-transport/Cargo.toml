@@ -11,6 +11,7 @@ readme = "README.md"
 [features]
 default = []
 ble = ["dep:bluer", "dep:futures-util"]
+btleplug = ["dep:btleplug", "dep:futures-util", "dep:uuid"]
 
 [dependencies]
 async-trait.workspace = true
@@ -18,6 +19,10 @@ thiserror.workspace = true
 tokio.workspace = true
 bluer = { version = "=0.17.4", optional = true, features = ["bluetoothd"] }
 futures-util = { version = "0.3", optional = true }
+btleplug = { workspace = true, optional = true }
+uuid = { version = "1", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+letratag-protocol.workspace = true
+letratag-render.workspace = true

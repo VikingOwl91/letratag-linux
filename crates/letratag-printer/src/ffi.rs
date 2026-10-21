@@ -7,9 +7,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 use std::sync::Mutex;
 
-/// How submitted jobs reach a printer. Mock is the safe default; Bluez
-/// targets real hardware. There is never an implicit fallback from Bluez
-/// to mock: a requested Bluez transport either runs as Bluez or fails.
+/// How submitted jobs reach a printer. Mock is the safe default; Bluez and
+/// btleplug target real hardware. There is never an implicit fallback from a
+/// real backend to mock: a requested backend either runs or fails.
 pub enum TransportKind {
     Mock,
     Bluez {
@@ -18,22 +18,41 @@ pub enum TransportKind {
         /// Hardware-validated write capability recorded for this address.
         printer_cap: Option<usize>,
     },
+    Btleplug {
+        address: String,
+        chunk_mode: ChunkMode,
+        /// Hardware-validated write capability recorded for this address.
+        printer_cap: Option<usize>,
+    },
 }
 
 impl TransportKind {
-    /// Error message when the requested transport is not compiled in.
-    #[cfg(feature = "ble")]
-    pub fn unsupported(&self) -> Option<&'static str> {
-        let _ = self;
-        None
+    /// Backend label for startup diagnostics.
+    pub fn backend_name(&self) -> &'static str {
+        match self {
+            TransportKind::Mock => "mock",
+            TransportKind::Bluez { .. } => "BlueZ",
+            TransportKind::Btleplug { .. } => "btleplug",
+        }
     }
 
-    #[cfg(not(feature = "ble"))]
+    /// Error message when the requested transport is not compiled in.
     pub fn unsupported(&self) -> Option<&'static str> {
         match self {
             TransportKind::Mock => None,
             TransportKind::Bluez { .. } => {
-                Some("the ble feature is not compiled in; build with --features pappl,ble")
+                #[cfg(not(feature = "ble"))]
+                return Some("the ble feature is not compiled in; build with --features pappl,ble");
+                #[cfg(feature = "ble")]
+                None
+            }
+            TransportKind::Btleplug { .. } => {
+                #[cfg(not(feature = "btleplug"))]
+                return Some(
+                    "the btleplug feature is not compiled in; build with --features pappl,btleplug",
+                );
+                #[cfg(feature = "btleplug")]
+                None
             }
         }
     }
@@ -84,6 +103,11 @@ impl App {
                 chunk_mode,
                 printer_cap,
             } => self.submit_bluez(&mut engine, raster, address, *chunk_mode, *printer_cap),
+            TransportKind::Btleplug {
+                address,
+                chunk_mode,
+                printer_cap,
+            } => self.submit_btleplug(&mut engine, raster, address, *chunk_mode, *printer_cap),
         }
     }
 
@@ -113,6 +137,42 @@ impl App {
 
     #[cfg(not(feature = "ble"))]
     fn submit_bluez(
+        &self,
+        _engine: &mut Engine,
+        _raster: &Raster,
+        _address: &str,
+        _chunk_mode: ChunkMode,
+        _printer_cap: Option<usize>,
+    ) -> c_int {
+        1
+    }
+
+    #[cfg(feature = "btleplug")]
+    fn submit_btleplug(
+        &self,
+        engine: &mut Engine,
+        raster: &Raster,
+        address: &str,
+        chunk_mode: ChunkMode,
+        printer_cap: Option<usize>,
+    ) -> c_int {
+        let Ok(transport) = letratag_transport::BtleplugTransport::new(address) else {
+            return 1;
+        };
+        let mut transport = transport
+            .with_chunk_mode(chunk_mode)
+            .with_printer_cap(printer_cap);
+        // Same hardware path: bounded timeouts, no retries, uncertain
+        // outcome persisted in the journal (see engine::JobState).
+        i32::from(
+            self.runtime
+                .block_on(engine.print(raster, self.profile, &mut transport, true))
+                .is_err(),
+        )
+    }
+
+    #[cfg(not(feature = "btleplug"))]
+    fn submit_btleplug(
         &self,
         _engine: &mut Engine,
         _raster: &Raster,
@@ -156,7 +216,7 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
             geometry::RESOLUTION_DPI as u32
         ))
         .unwrap(),
-        TransportKind::Bluez { .. } => {
+        TransportKind::Bluez { .. } | TransportKind::Btleplug { .. } => {
             CString::new("DYMO LetraTag 200B (BLE, experimental)").unwrap()
         }
     };

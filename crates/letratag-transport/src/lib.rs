@@ -9,14 +9,18 @@ use thiserror::Error;
 mod bluez;
 #[cfg(feature = "ble")]
 pub use bluez::{BluezTransport, DiscoveredDevice, resolve_device};
+#[cfg(feature = "btleplug")]
+mod btleplug_backend;
+#[cfg(feature = "btleplug")]
+pub use btleplug_backend::{BtleplugTransport, GattCentral, GattPeripheral, mock};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-#[cfg(feature = "ble")]
+#[cfg(any(feature = "ble", feature = "btleplug"))]
 const WRITE_TIMEOUT: Duration = Duration::from_secs(3);
 /// Bound for a mock write that never completes (MockFault::WriteBlock).
 const MOCK_BLOCK_TIMEOUT: Duration = Duration::from_secs(3);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(30);
-#[cfg(feature = "ble")]
+#[cfg(any(feature = "ble", feature = "btleplug"))]
 const DISCONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const MAX_VALUE_SIZE: usize = 512;
 const MAX_WRITES: usize = 256;
@@ -137,6 +141,24 @@ pub fn effective_write_limit(
         return Err(Error::WriteSizeTooSmall(limit));
     }
     Ok(limit)
+}
+
+/// Diagnostics label for the configured chunk mode.
+pub(crate) fn chunk_mode_label(mode: ChunkMode) -> &'static str {
+    match mode {
+        ChunkMode::Auto => "auto",
+        ChunkMode::Safe => "safe",
+        ChunkMode::Manual(_) => "manual",
+    }
+}
+
+/// A manual size above the validated capability (or with no recorded
+/// capability at all) is experimental, not validated.
+pub(crate) fn experimental(mode: ChunkMode, printer_cap: Option<usize>) -> bool {
+    match mode {
+        ChunkMode::Manual(value) => printer_cap.is_none_or(|cap| value > cap),
+        _ => false,
+    }
 }
 
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]

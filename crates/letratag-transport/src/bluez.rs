@@ -90,6 +90,27 @@ impl BluezTransport {
         self
     }
 
+    /// Formatted GATT table for backend comparison diagnostics. `None` when
+    /// not connected.
+    pub async fn describe_gatt(&self) -> Option<String> {
+        let device = self.device.as_ref()?;
+        let services = device.services().await.ok()?;
+        let mut lines = vec![format!("BlueZ GATT table for {}", self.address)];
+        for service in services {
+            let uuid = service.uuid().await.ok()?;
+            lines.push(format!("SERVICE {uuid} handle={:#06x}", service.id()));
+            for characteristic in service.characteristics().await.ok()? {
+                let cuuid = characteristic.uuid().await.ok()?;
+                let flags = characteristic.flags().await.ok()?;
+                lines.push(format!(
+                    "  CHAR {cuuid} write={} write-without-response={} notify={}",
+                    flags.write, flags.write_without_response, flags.notify
+                ));
+            }
+        }
+        Some(lines.join("\n"))
+    }
+
     /// Record a hardware-validated printer write capability in bytes per
     /// GATT value. Only operator-confirmed limits belong here: an
     /// acknowledged ATT write does not prove the printer processed the job.
@@ -377,24 +398,6 @@ impl Transport for BluezTransport {
 
     fn parameters(&self) -> TransportParameters {
         self.parameters.clone()
-    }
-}
-
-/// Diagnostics label for the configured chunk mode.
-fn chunk_mode_label(mode: ChunkMode) -> &'static str {
-    match mode {
-        ChunkMode::Auto => "auto",
-        ChunkMode::Safe => "safe",
-        ChunkMode::Manual(_) => "manual",
-    }
-}
-
-/// A manual size above the validated capability (or with no recorded
-/// capability at all) is experimental, not validated.
-fn experimental(mode: ChunkMode, printer_cap: Option<usize>) -> bool {
-    match mode {
-        ChunkMode::Manual(value) => printer_cap.is_none_or(|cap| value > cap),
-        _ => false,
     }
 }
 

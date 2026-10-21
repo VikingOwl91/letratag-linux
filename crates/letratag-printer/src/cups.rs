@@ -23,7 +23,9 @@ pub fn settings_report(port: u16) -> String {
          Desktop application support is not generally verified.\n\
          \n\
          Real hardware requires an explicit operator choice:\n\
-         \x20 build with --features pappl,ble; serve --transport bluez --address <MAC>.\n\
+         \x20 build with --features pappl,ble (established BlueZ backend) or\n\
+         \x20 pappl,btleplug (alternative btleplug backend);\n\
+         \x20 serve --transport bluez|btleplug --address <MAC>.\n\
          There is no implicit fallback. Hardware completion is operator-in-the-loop:\n\
          every transmission leaves an inflight journal; do not blindly resubmit.\n\
          See docs/security.md and docs/hardware-acceptance.md.\n\
@@ -71,6 +73,8 @@ mod tests {
         assert!(report.contains("operator-in-the-loop"));
         assert!(report.contains("docs/direct-ipp.md"));
         assert!(report.contains("docs/security.md"));
+        assert!(report.contains("--transport bluez|btleplug"));
+        assert!(report.contains("pappl,btleplug"));
     }
 
     #[test]

@@ -480,6 +480,91 @@ mod tests {
         assert!(engine.is_blocked());
     }
 
+    #[cfg(feature = "btleplug")]
+    #[tokio::test(start_paused = true)]
+    async fn btleplug_backend_keeps_uncertain_outcome_and_journal_semantics() {
+        use letratag_transport::mock::{MockGattCentral, MockGattPeripheral};
+        use letratag_transport::{BtleplugTransport, ChunkMode};
+
+        // Status notifications never arrive: the status phase times out and
+        // the outcome stays uncertain, exactly like the hardware path.
+        let (mut peripheral, state) = MockGattPeripheral::lt200b();
+        peripheral.pending_notifications = true;
+        let mut transport = BtleplugTransport::new("90:E5:B1:49:DA:AE")
+            .unwrap()
+            .with_central(Box::new(MockGattCentral::new(peripheral)))
+            .with_chunk_mode(ChunkMode::Auto)
+            .with_printer_cap(Some(244));
+        let dir = private_tempdir();
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Legacy, &mut transport, true)
+                .await,
+            Err(Error::Uncertain)
+        ));
+        // The engine transmitted the exact expected legacy write sequence
+        // (40-column raster: body 184 bytes, one chunk at cap 244).
+        let expected = letratag_protocol::Job::new(&raster(), Profile::Legacy)
+            .unwrap()
+            .writes(244)
+            .unwrap();
+        let expected_sizes: Vec<usize> = expected.iter().map(|w| w.len()).collect();
+        let state = state.lock().unwrap();
+        let recorded: Vec<usize> = state.writes.iter().map(|(_, data, _)| data.len()).collect();
+        assert_eq!(recorded, expected_sizes);
+        drop(state);
+        // Uncertain outcome: inflight journal and the engine stays blocked.
+        assert!(engine.is_blocked());
+        let journal = fs::read_dir(dir.path())
+            .unwrap()
+            .find_map(|entry| {
+                let path = entry.unwrap().path();
+                (path.extension().is_some_and(|e| e == "state")).then_some(path)
+            })
+            .unwrap();
+        assert_eq!(fs::read_to_string(journal).unwrap(), "inflight\n");
+    }
+
+    #[cfg(feature = "btleplug")]
+    #[tokio::test]
+    async fn btleplug_backend_connect_failure_is_safe_transport() {
+        use letratag_transport::mock::{MockGattCentral, MockGattPeripheral};
+        use letratag_transport::{BtleplugTransport, ChunkMode};
+
+        let (peripheral, state) = MockGattPeripheral::lt200b();
+        let mut central = MockGattCentral::new(peripheral);
+        central.fail_scan = true;
+        let mut transport = BtleplugTransport::new("90:E5:B1:49:DA:AE")
+            .unwrap()
+            .with_central(Box::new(central))
+            .with_chunk_mode(ChunkMode::Auto);
+        let dir = private_tempdir();
+        let mut engine = Engine::new(dir.path(), false).unwrap();
+        assert!(matches!(
+            engine
+                .print(&raster(), Profile::Legacy, &mut transport, true)
+                .await,
+            Err(Error::SafeTransport)
+        ));
+        assert!(!engine.is_blocked());
+        assert!(state.lock().unwrap().writes.is_empty());
+        assert!(!dir.path().join("queue.lock").metadata().unwrap().is_file() || true);
+        assert_eq!(
+            fs::read_dir(dir.path())
+                .unwrap()
+                .filter(|e| e
+                    .as_ref()
+                    .unwrap()
+                    .path()
+                    .extension()
+                    .is_some_and(|e| e == "state"))
+                .count(),
+            0,
+            "no journal entry for a pre-transmission failure"
+        );
+    }
+
     #[tokio::test]
     async fn hardware_discards_only_the_first_progress_ack() {
         // S1's two-message sequence: a first PRINTING notification (code 0

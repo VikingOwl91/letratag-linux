@@ -29,6 +29,18 @@ enum TransportChoice {
     Mock,
     /// Real hardware over BlueZ (requires --address; never falls back).
     Bluez,
+    /// Real hardware over btleplug (requires --address; never falls back).
+    Btleplug,
+}
+
+/// Backend selection for the explicit one-shot hardware send.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum SendTransportChoice {
+    /// Real hardware over the existing BlueZ transport (default).
+    #[default]
+    Bluez,
+    /// Real hardware over btleplug (alternative backend for comparison).
+    Btleplug,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,7 +123,8 @@ enum Commands {
         capture: bool,
     },
     /// Local PAPPL endpoint. Mock transport by default; real hardware with
-    /// --transport bluez (explicit operator choice, no implicit fallback).
+    /// --transport bluez or btleplug (explicit operator choice, no implicit
+    /// fallback).
     #[cfg(feature = "pappl")]
     Serve {
         #[arg(long)]
@@ -125,7 +138,8 @@ enum Commands {
         /// Transport for submitted jobs.
         #[arg(long, value_enum, default_value_t = TransportChoice::Mock)]
         transport: TransportChoice,
-        /// Bluetooth address of the printer (required with --transport bluez).
+        /// Bluetooth address of the printer (required with --transport
+        /// bluez or btleplug).
         #[arg(long)]
         address: Option<String>,
         /// Wire profile. Explicit operator choice; never switched automatically.
@@ -163,7 +177,7 @@ enum Commands {
         set_cassette_type: Option<u8>,
     },
     /// Explicit experimental physical send. Always leaves an uncertain journal.
-    #[cfg(feature = "ble")]
+    #[cfg(any(feature = "ble", feature = "btleplug"))]
     HardwareSend {
         input: PathBuf,
         #[arg(long)]
@@ -172,6 +186,9 @@ enum Commands {
         state: PathBuf,
         #[arg(long)]
         acknowledge_unverified_hardware: bool,
+        /// BLE backend (default: bluez, the established transport).
+        #[arg(long, value_enum, default_value_t = SendTransportChoice::Bluez)]
+        transport: SendTransportChoice,
         #[arg(long, default_value_t = 40)]
         columns: usize,
         /// Content-free protocol diagnostics on stderr (status bytes, timing).
@@ -307,6 +324,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         printer_cap,
                     }
                 }
+                TransportChoice::Btleplug => {
+                    let address = address.ok_or("--transport btleplug requires --address <MAC>")?;
+                    let printer_cap = letratag_printer::caps::lookup(&state, &address)
+                        .map_err(|e| e.to_string())?;
+                    TransportKind::Btleplug {
+                        address,
+                        chunk_mode,
+                        printer_cap,
+                    }
+                }
             };
             if let Some(message) = kind.unsupported() {
                 return Err(message.into());
@@ -319,10 +346,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     chunk_mode,
                     printer_cap,
                     ..
+                }
+                | TransportKind::Btleplug {
+                    chunk_mode,
+                    printer_cap,
+                    ..
                 } => {
                     let cap = printer_cap.map_or("unknown".to_string(), |cap| cap.to_string());
                     eprintln!(
-                        "serving BlueZ transport on 127.0.0.1:{port}; chunk mode: {chunk_mode:?}, validated printer cap: {cap}"
+                        "serving {:?} transport on 127.0.0.1:{port}; chunk mode: {chunk_mode:?}, validated printer cap: {cap}",
+                        kind.backend_name()
                     );
                 }
             }
@@ -347,12 +380,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 set_cassette_type,
             ))?;
         }
-        #[cfg(feature = "ble")]
+        #[cfg(any(feature = "ble", feature = "btleplug"))]
         Commands::HardwareSend {
             input,
             address,
             state,
             acknowledge_unverified_hardware,
+            transport: send_transport,
             columns,
             diagnostics,
             profile,
@@ -369,9 +403,33 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut engine = Engine::new(state.clone(), false)?.with_diagnostics(diagnostics);
             let printer_cap =
                 letratag_printer::caps::lookup(&state, &address).map_err(|e| e.to_string())?;
-            let mut transport = letratag_transport::BluezTransport::new(&address)?
-                .with_chunk_mode(chunk_mode)
-                .with_printer_cap(printer_cap);
+            let mut transport: Box<dyn letratag_transport::Transport> = match send_transport {
+                #[cfg(feature = "ble")]
+                SendTransportChoice::Bluez => Box::new(
+                    letratag_transport::BluezTransport::new(&address)?
+                        .with_chunk_mode(chunk_mode)
+                        .with_printer_cap(printer_cap),
+                ),
+                #[cfg(not(feature = "ble"))]
+                SendTransportChoice::Bluez => {
+                    return Err(
+                        "the ble feature is not compiled in; build with --features ble".into(),
+                    );
+                }
+                #[cfg(feature = "btleplug")]
+                SendTransportChoice::Btleplug => Box::new(
+                    letratag_transport::BtleplugTransport::new(&address)?
+                        .with_chunk_mode(chunk_mode)
+                        .with_printer_cap(printer_cap),
+                ),
+                #[cfg(not(feature = "btleplug"))]
+                SendTransportChoice::Btleplug => {
+                    return Err(
+                        "the btleplug feature is not compiled in; build with --features btleplug"
+                            .into(),
+                    );
+                }
+            };
             if let Some(id) = set_cassette_type {
                 engine = engine
                     .with_short_command(Some(letratag_protocol::set_cassette_type_write(id)?));
@@ -382,7 +440,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;
-            rt.block_on(engine.print(&raster, profile.into(), &mut transport, true))?;
+            rt.block_on(engine.print(&raster, profile.into(), transport.as_mut(), true))?;
         }
     }
     Ok(())
