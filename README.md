@@ -149,7 +149,8 @@ cargo run --locked -p letratag-printer --features ble -- hardware-info \
 See [hardware acceptance](docs/hardware-acceptance.md) for the physical
 print procedure and its preconditions.
 
-Submit a test print through the running local PAPPL endpoint:
+Submit a test print through the running local PAPPL endpoint (CUPS client
+directly to PAPPL, no system queue):
 
 ```sh
 lp -h 127.0.0.1:8631 -d letratag \
@@ -163,11 +164,78 @@ integration run starts and stops only its own process on an available high port:
 bash scripts/test-ipp.sh
 ```
 
-For a future system-wide queue, after separate approval: configure the IPP URI
-`ipp://127.0.0.1:8631/ipp/print` as a new IPP destination. GUI discovery and the
-path through a separate CUPS scheduler are separate acceptance checks.
-Do not change an existing queue. A systemd template is in `packaging/systemd/`;
-it is not installed or started automatically.
+### CUPS queue (validated end-to-end, 2026-10-21)
+
+A dedicated, driverless CUPS queue routes jobs through the system scheduler
+into the local endpoint. This changes system CUPS configuration: create the
+queue only with explicit approval, never touch an existing queue, and remove
+it afterwards (`lpadmin -x`) unless you want to keep it. Loopback only; the
+scheduler is not exposed publicly. `letratag-printer cups-settings` prints
+the same runbook.
+
+Preflight:
+
+1. Start the local endpoint and verify it answers
+   (`ipptool ipp://127.0.0.1:8631/ipp/print`).
+2. Hardware runs: printer powered on (it auto-powers-off after ~5 min
+   idle), blueman-applet stopped (it kills BLE discovery), fresh private
+   journal, validated caps in `<state>/printer-caps.conf`.
+3. For a no-hardware dry run, start the endpoint without
+   `--transport bluez` (mock) and expect a completed mock job.
+
+```sh
+# Local endpoint with the real BlueZ transport (or mock for a dry run).
+target/debug/letratag-printer serve \
+  --state "$PWD/test-output/cups-journal" --spool "$PWD/test-output/cups-spool" \
+  --port 8631 --transport bluez --address '<device-address>' --profile legacy
+
+# Dedicated driverless queue (IPP Everywhere), no retries.
+lpadmin -p letratag-e2e -E -v ipp://127.0.0.1:8631/ipp/print -m everywhere
+lpadmin -p letratag-e2e -o printer-error-policy=abort-job
+
+# One print job through CUPS.
+lp -d letratag-e2e -o media=12x50mm.Borderless label.pdf
+
+# Check the queue and the job.
+lpstat -p letratag-e2e && lpstat -W all -o letratag-e2e
+
+# Remove the queue again (returns the system to its prior state).
+lpadmin -x letratag-e2e
+```
+
+Notes and expected behavior:
+
+* Media through CUPS is `12x50mm.Borderless` (1200 × 5000 in 1/100 mm); no
+  `print-scaling` option is needed (the driver defaults to no-scaling when
+  the attribute is absent).
+* `abort-job` prevents scheduler retries: the hardware path never reprints
+  an uncertain job automatically.
+* The endpoint reports the job aborted (uncertain outcome, inflight
+  journal); CUPS may report completed. Neither is physical proof — inspect
+  the label and record the journal decision.
+* The full path — `lp` → CUPS → PAPPL → BLE → printer — was
+  acceptance-tested with an operator-confirmed physical label; see
+  [hardware acceptance](docs/hardware-acceptance.md) section 7.
+
+Troubleshooting:
+
+* `lpadmin` fails or the queue has no PPD: the endpoint is not running or
+  not answering — start it first (preflight step 1).
+* Job stays pending: endpoint down, or queue disabled — check
+  `lpstat -p letratag-e2e` and `cupsenable letratag-e2e`.
+* Job aborts immediately ("Input rejected..."): document validation
+  failed — one 12 mm page, at most 200 mm, ink inside the centered 30-row
+  printable area, qpdf-clean PDF.
+* Job aborts after connecting (printer off): nothing was sent, no journal
+  entry; power the printer on and resubmit.
+* CUPS shows completed but no label emerged: check the journal (inflight =
+  uncertain outcome) and inspect the tape; do not resubmit blindly — the
+  journal blocks the queue until you record a decision.
+* `Unable to cancel print job` in `lpstat -l`: informational; the job
+  already finished.
+
+A systemd template is in `packaging/systemd/`; it is not installed or
+started automatically.
 
 ## Formats and limits
 

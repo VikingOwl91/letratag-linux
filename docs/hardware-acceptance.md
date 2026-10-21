@@ -280,21 +280,145 @@ Do not deliberately jam tape or interfere mechanically with the print head.
 
 ## 6. System integration acceptance
 
-1. Retain a dedicated mock queue for regression tests.
+1. Retain a dedicated mock queue for regression tests. **Done:** the CUPS
+   path was validated against the mock transport before the physical print
+   (temporary queue `letratag-e2e-mock`, since removed).
 2. Register a **new** local IPP target only with operator approval. Do not
-   replace existing CUPS printers.
+   replace existing CUPS printers. **Done 2026-10-21:** dedicated queue
+   `letratag-e2e` (driverless IPP Everywhere), removed again after the
+   acceptance run; the existing `Canon_LBP633C` queue was not touched.
 3. Print one synthetic 50 × 12-mm PDF with `print-scaling=none`, then a
    different supported length using an explicit IPP media collection.
+   **Partially done 2026-10-21:** the 50 × 12-mm PDF printed through CUPS
+   (see section 7); a different length through CUPS remains untested.
 4. Print from a normal Linux application/graphical dialog and compare its
    pixel preview and physical measurements with the CLI output.
 5. Verify the application did not introduce page fitting, margins, extra
-   copies or resubmission on an uncertain outcome.
+   copies or resubmission on an uncertain outcome. **Done for CUPS:** the
+   queue used `printer-error-policy=abort-job`; exactly one transmission and
+   no duplicate labels (operator-confirmed).
 6. Check the non-root service user's actual BlueZ/D-Bus permissions and all
    systemd restrictions, without loosening global Bluetooth policy by default.
 7. Fault-inject cancellation during preflight and lost IPP acknowledgments.
    Confirm that scheduler/client resubmissions cannot silently repeat a
    possibly printed label. The existing journal is not cross-request
    idempotency, and mock completion is not a physical exactly-once guarantee.
+
+## 7. CUPS end-to-end acceptance, 2026-10-21: PASS (operator-confirmed)
+
+Full path verified: `lp` → CUPS scheduler → IPP → PAPPL
+(`letratag-printer`) → Rust BLE transport → BlueZ → DYMO LetraTag 200B.
+Label `CUPS-E2E-0001` (50 × 12 mm, 160 dpi layout, legacy profile),
+**one physical print, operator-confirmed**.
+
+### Setup (reproducible, reversible)
+
+```sh
+# 1. Local endpoint with the real BlueZ transport (fresh private journal,
+#    validated-caps entry 90:E5:B1:49:DA:AE 244 in printer-caps.conf).
+target/debug/letratag-printer serve \
+  --state test-output/acceptance/cups-state \
+  --spool test-output/acceptance/cups-spool \
+  --port 8631 --transport bluez --address 90:E5:B1:49:DA:AE \
+  --profile legacy --diagnostics
+
+# 2. Dedicated driverless queue (IPP Everywhere), no retries.
+lpadmin -p letratag-e2e -E -v ipp://127.0.0.1:8631/ipp/print -m everywhere
+lpadmin -p letratag-e2e -o printer-error-policy=abort-job
+
+# 3. One print job through CUPS.
+lp -d letratag-e2e -o media=12x50mm.Borderless test-output/acceptance/cups-e2e-0001.pdf
+
+# Removal returns the system to its prior state:
+lpadmin -x letratag-e2e
+```
+
+Notes: the driverless PPD advertises CUPS' converted input formats while
+the endpoint stays PDF-only; `print-scaling` needs no option because the
+adapter defaults to no-scaling when the attribute is absent; the media
+keyword through CUPS is `12x50mm.Borderless` (dimensions 1200 × 5000 in
+1/100 mm). blueman-applet must be stopped during hardware runs (it stops
+BLE discovery within a second). The printer must be powered on; if BlueZ
+no longer knows the device, the transport rediscovers it (bounded LE
+discovery, exact address match).
+
+### Evidence
+
+* CUPS: job `letratag-e2e-43` submitted 03:08:10, finished 03:08:50;
+  `printer-error-policy = abort-job`; queue idle with no reasons afterwards.
+* Mock pre-validation: the identical CUPS path against the mock transport
+  (temporary queue, since removed) completed in one attempt; the capture
+  decoded to width 315 (50 mm at 160 dpi), ink inside the printable band.
+* PAPPL diagnostics (`test-output/acceptance/cups-server.log`): connected
+  0.77 s, effective write size 244 (auto + validated cap), 7 writes
+  (header + 6 chunks; legacy body 1284 for width 315), single `1b 52 00`
+  6.2 s after the last write (physical print duration), outcome uncertain
+  at 37.7 s (30 s status timeout after the first notification is discarded
+  as a progress ack).
+* Journal: exactly one entry, `inflight`, archived with the operator
+  decision (`test-output/acceptance/cups-state/archive/DECISION.md`).
+* Operator confirmation (Phase 4 checklist): label produced, text
+  `CUPS-E2E-0001` present and readable, orientation and positioning
+  correct, not cropped or truncated, **no duplicate or unintended labels**.
+
+### Software-level completion vs. physical success
+
+The three software-level states diverge deliberately and must not be read as
+physical proof:
+
+| Layer | Job state | Meaning |
+|---|---|---|
+| PAPPL endpoint (job 1) | `aborted` | Engine outcome uncertain (phantom-success policy); journal inflight |
+| CUPS scheduler (job 43) | `completed` / `job-completed-successfully` | CUPS-side processing finished; not evidence of a physical label |
+| Physical label | operator-confirmed | The actual acceptance criterion |
+
+A successful API response, CUPS job completion, or PAPPL status alone is
+not sufficient evidence of a successful print.
+
+### Failure behavior (Phase 5)
+
+* **Printer off / unreachable:** connect fails before any write
+  (`SafeTransport`); no journal entry; CUPS job ends aborted (abort-job
+  policy, no retry). Verified live on 2026-10-21 (two connect failures
+  before the printer was powered on; nothing was sent either time).
+* **BLE discovery failure:** bounded LE discovery (15 s, 256 events, exact
+  address match) then `DeviceNotFound` → `SafeTransport`. Covered by
+  deterministic transport tests.
+* **PAPPL daemon unavailable:** CUPS jobs pend or abort per queue policy;
+  no partial transmission is possible (the endpoint is the only writer).
+* **Unsupported format/media:** the endpoint is PDF-only and rejects
+  raster/URF, multipage, oversized and media-mismatched documents before
+  any submission (loopback suite, 67 IPP assertions).
+* **Job failure propagation:** pre-transmission rejections abort the IPP
+  job (`print-and-expect-aborted`); post-transmission uncertain outcomes
+  abort the endpoint job and leave the journal inflight. CUPS may report
+  its own completion regardless (see the table above).
+* **Recovery after a failed job:** the inflight journal blocks the queue
+  until the operator inspects and records a decision; no automatic replay.
+  Engine-level disconnect, status-timeout and cancellation paths are
+  covered by deterministic mock tests.
+
+### Troubleshooting the CUPS path
+
+* `lpadmin` fails or the queue has no PPD: the endpoint is not running or
+  not answering — start it first and verify with
+  `ipptool ipp://127.0.0.1:8631/ipp/print`.
+* Job stays pending: endpoint down, or queue disabled — check
+  `lpstat -p letratag-e2e` and `cupsenable letratag-e2e`.
+* Job aborts immediately ("Input rejected or print outcome uncertain"):
+  document validation failed — one 12 mm page, at most 200 mm long, ink
+  inside the centered 30-row printable area, qpdf-clean PDF.
+* Job aborts after connecting (printer off): `SafeTransport`, nothing was
+  sent, no journal entry; power the printer on and resubmit.
+* `Device ... not available` / connect failures: BlueZ no longer knows the
+  device — re-scan (`bluetoothctl --timeout 10 scan le`); the transport
+  also rediscovers automatically on the next job (bounded LE discovery).
+* blueman-applet running: stop it; it stops BLE discovery within a second.
+* CUPS shows completed but no label emerged: check the journal (inflight =
+  uncertain outcome) and inspect the tape; do not resubmit blindly — the
+  journal blocks the queue until you record a decision.
+* `Unable to cancel print job` in `lpstat -l`: informational; the job
+  already finished.
 
 ## Remaining acceptance criteria (updated 2026-10-21)
 
@@ -312,16 +436,16 @@ to 160 dpi; the BlueZ transport is wired into the IPP serve path behind
    measured 160 dpi isotropic pitch; PDF page geometry, IPP media
    conversion and tests derive from it. Physical length still includes
    the printer's ~3.4 mm lead-in, which the layout does not model.
-3. CUPS/PAPPL over BLE: the serve path accepts `--transport bluez` with an
-   explicit address; mock stays the default and there is no fallback.
-   **Done 2026-10-21:** the end-to-end acceptance print through the serve
-   path (PDF → IPP/PAPPL → BLE) produced an operator-confirmed label, with
-   auto chunk sizing (validated cap 244), honest transport diagnostics and
-   the conservative uncertain outcome. Remaining before a hardware-backed
-   system queue: the completion policy (item 1), device availability
-   detection before accepting jobs, D-Bus/BlueZ permission checks for the
-   non-root service user (docs/security.md), and separate operator approval
-   for any system-wide CUPS change.
+3. CUPS/PAPPL over BLE: **Done 2026-10-21 for a local dedicated queue:**
+   the serve path accepts `--transport bluez` with an explicit address, and
+   the full `lp` → CUPS → PAPPL → BLE chain produced an operator-confirmed
+   label (section 7), with auto chunk sizing (validated cap 244), honest
+   transport diagnostics and the conservative uncertain outcome. Remaining
+   before a hardware-backed **system-wide** queue: the completion policy
+   (item 1), device availability detection before accepting jobs,
+   D-Bus/BlueZ permission checks for the non-root service user
+   (docs/security.md), a different-length CUPS print, a graphical-dialog
+   print, and separate operator approval for any system-wide CUPS change.
 4. Host adapter stability: the Bluetooth adapter power-cycles every 60 s
    (blueman-applet polling plus USB autosuspend on the Realtek dongle, hci
    index churn). Observed 2026-10-21: a running blueman-applet stops BLE
@@ -353,6 +477,11 @@ docs/evidence/hardware-calibration-batch-2026-10-20.md.
 End-to-end serve-path acceptance print: executed 2026-10-21, one attempt,
 operator-confirmed physical label (`ASSET-0001` / `DYMO LT200B`). Evidence:
 docs/evidence/hardware-acceptance-serve-2026-10-21.md.
+
+CUPS end-to-end acceptance print: executed 2026-10-21, one attempt through
+`lp` → CUPS → PAPPL → BLE, operator-confirmed physical label
+(`CUPS-E2E-0001`). Evidence: section 7 above and
+test-output/acceptance/cups-state/archive/DECISION.md.
 
 BLE lifecycle test: executed 2026-10-21 (non-printing; see
 [protocol.md](protocol.md) section 2 "Connection lifecycle"). Discovery and

@@ -34,13 +34,43 @@ pub fn settings_report(port: u16) -> String {
          \x20 until the operator resolves it (docs/security.md,\n\
          \x20 docs/hardware-acceptance.md).\n\
          \n\
-         System-wide queue (requires separate operator approval; NOT installed):\n\
-         \x20 1. Start the local endpoint, e.g. via the systemd template in\n\
-         \x20    packaging/systemd/letratag-linux.service (not installed).\n\
-         \x20 2. Register a NEW IPP destination (do not touch existing queues):\n\
-         \x20    lpadmin -p letratag -E -v ipp://127.0.0.1:{port}/ipp/print\n\
-         \x20 3. Verify:\n\
-         \x20    lpstat -p letratag -v\n\
+         Dedicated CUPS queue (validated 2026-10-21; create only with explicit\n\
+         \x20 operator approval; loopback only; never touch an existing queue):\n\
+         \n\
+         \x20 Preflight:\n\
+         \x20 - Start the local endpoint first and verify it answers\n\
+         \x20   (ipptool ipp://127.0.0.1:{port}/ipp/print).\n\
+         \x20 - Hardware runs: printer powered on, blueman-applet stopped (it\n\
+         \x20   kills BLE discovery), fresh private journal, validated caps in\n\
+         \x20   <state>/printer-caps.conf. For a no-hardware dry run, start the\n\
+         \x20   endpoint without --transport bluez (mock) and expect a completed\n\
+         \x20   mock job.\n\
+         \n\
+         \x20 Create the queue (driverless IPP Everywhere, no retries):\n\
+         \x20 lpadmin -p letratag-e2e -E -v ipp://127.0.0.1:{port}/ipp/print -m everywhere\n\
+         \x20 lpadmin -p letratag-e2e -o printer-error-policy=abort-job\n\
+         \n\
+         \x20 Print one job through CUPS:\n\
+         \x20 lp -d letratag-e2e -o media=12x50mm.Borderless label.pdf\n\
+         \n\
+         \x20 Check the queue and the job:\n\
+         \x20 lpstat -p letratag-e2e\n\
+         \x20 lpoptions -p letratag-e2e -l\n\
+         \x20 lpstat -W all -o letratag-e2e\n\
+         \n\
+         \x20 Remove the queue again (returns the system to its prior state):\n\
+         \x20 lpadmin -x letratag-e2e\n\
+         \n\
+         \x20 Media through CUPS is named 12x50mm.Borderless (1200 x 5000 in\n\
+         \x20 1/100 mm); no print-scaling option is needed (the driver defaults\n\
+         \x20 to no-scaling when the attribute is absent). abort-job prevents\n\
+         \x20 scheduler retries: the hardware path never reprints an uncertain\n\
+         \x20 job automatically.\n\
+         \n\
+         \x20 Expected states: the endpoint reports the job aborted (uncertain\n\
+         \x20 outcome, inflight journal); CUPS may report completed. Neither is\n\
+         \x20 physical proof; inspect the label and record the journal decision.\n\
+         \x20 See docs/hardware-acceptance.md section 7.\n\
          \n\
          Service-user permissions (before any hardware-backed queue):\n\
          \x20 Check the non-root service user's BlueZ/D-Bus authorization\n\
@@ -63,11 +93,32 @@ mod tests {
         assert!(report.contains("ipp://127.0.0.1:8631/ipp/print"));
         assert!(report.contains("lp -h 127.0.0.1:8631 -d letratag"));
         assert!(report.contains("lpr -H 127.0.0.1:8631 -P letratag"));
-        assert!(report.contains("lpadmin -p letratag -E -v ipp://127.0.0.1:8631/ipp/print"));
         assert!(report.contains("12 x 50 mm"));
         assert!(report.contains("PDF only"));
         assert!(report.contains("operator-in-the-loop"));
         assert!(report.contains("docs/security.md"));
+    }
+
+    #[test]
+    fn settings_report_documents_the_validated_cups_queue_flow() {
+        let report = settings_report(8631);
+        // Driverless queue creation with the validated queue name and the
+        // no-retry error policy.
+        assert!(report.contains(
+            "lpadmin -p letratag-e2e -E -v ipp://127.0.0.1:8631/ipp/print -m everywhere"
+        ));
+        assert!(report.contains("lpadmin -p letratag-e2e -o printer-error-policy=abort-job"));
+        // Print through CUPS with the CUPS-side media name, and cleanup.
+        assert!(report.contains("lp -d letratag-e2e -o media=12x50mm.Borderless label.pdf"));
+        assert!(report.contains("lpadmin -x letratag-e2e"));
+        // Preflight, expected states and the software-vs-physical distinction.
+        assert!(report.contains("blueman-applet stopped"));
+        assert!(report.contains("printer-caps.conf"));
+        assert!(report.contains("no print-scaling option is needed"));
+        assert!(report.contains("the endpoint reports the job aborted"));
+        assert!(report.contains("CUPS may report completed"));
+        assert!(report.contains("Neither is"));
+        assert!(report.contains("docs/hardware-acceptance.md section 7"));
     }
 
     #[test]

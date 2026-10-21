@@ -128,6 +128,23 @@ result); it was never uploaded. See the correction in
 design. The temporary publication token was left for the operator to
 revoke; no credentials were committed (`.env` is git-ignored).
 
+### Addendum 2026-10-21 (CUPS end-to-end hardware acceptance)
+
+The full CUPS path — `lp` → CUPS scheduler → IPP → PAPPL → Rust BLE
+transport → BlueZ → DYMO LetraTag 200B — was acceptance-tested with one
+physical print, operator-confirmed (label `CUPS-E2E-0001`, 50 × 12 mm).
+A dedicated driverless queue `letratag-e2e` (`-m everywhere`,
+`printer-error-policy=abort-job`) was created for the run and removed
+afterwards; the existing `Canon_LBP633C` queue was not touched. Before the
+physical print, the identical CUPS path was validated against the mock
+transport (temporary queue, since removed): one completed job, capture
+decoded to width 315 with ink inside the printable band. Software-level
+states diverge deliberately: the PAPPL endpoint reports the job aborted
+(engine uncertain outcome, inflight journal), while CUPS reports
+completed-successfully; neither is physical proof — the operator
+confirmation is the acceptance criterion. No retries, no duplicate labels.
+See [hardware-acceptance.md](hardware-acceptance.md) section 7.
+
 ### Addendum 2026-10-21 (0.1.1 patch publication completed)
 
 After the operator updated the publication token, the README-carrying
