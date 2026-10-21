@@ -13,12 +13,18 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential ca-certificates git curl pkg-config \
             libcups2-dev cups-client cups-bsd cups-ipp-utils poppler-utils qpdf util-linux iproute2 \
-            libavahi-client-dev libssl-dev libpng-dev libjpeg-dev zlib1g-dev libdbus-1-dev jq
+            libavahi-client-dev libssl-dev libpng-dev libjpeg-dev zlib1g-dev libdbus-1-dev jq \
+            python3
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.98.1
           components: clippy,rustfmt
+      - name: Check CI prerequisites
+        run: |
+          for tool in bash git make cc cargo rustfmt python3 ipptool lp lpr ss qpdf jq prlimit pdftoppm; do
+            command -v "$tool" >/dev/null 2>&1 || { echo "missing CI prerequisite: $tool" >&2; exit 1; }
+          done
       - name: Build pinned PAPPL into the project
         run: bash scripts/build-pappl.sh
       - name: Rust checks
