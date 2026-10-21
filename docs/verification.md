@@ -118,12 +118,18 @@ all-features 86 tests plus 12 doc-tests passed, zero failed; clippy with
 `-D warnings` clean; rustfmt clean; debug and release builds passed; the
 loopback IPP mock suite passed; license inventory passed.
 
-The three library crates were published to crates.io at 0.1.0 on
-2026-10-21 (operator-approved): `letratag-protocol`, `letratag-render`,
-`letratag-transport`, verified via the crates.io API. `letratag-printer`
-remains unpublished by design. See [publishing.md](publishing.md). The
-temporary publication token was left for the operator to revoke; no
-credentials were committed (`.env` is git-ignored).
+Two of the three library crates were published to crates.io at 0.1.0 on
+2026-10-21 (operator-approved): `letratag-protocol` and `letratag-render`,
+both verified via the crates.io API and the sparse index.
+**Correction:** `letratag-transport` was reported as published but is not
+on crates.io (API 404, empty sparse-index entry, no `cargo search`
+result); it was never uploaded. See the correction in
+[publishing.md](publishing.md). `letratag-printer` remains unpublished by
+design. The temporary publication token was left for the operator to
+revoke; no credentials were committed (`.env` is git-ignored). The 0.1.1
+patch publication (README-carrying packages) is blocked by a token
+permission error (HTTP 403) on the first upload; nothing was published
+at 0.1.1.
 
 ### Addendum 2026-10-21 (end-to-end hardware acceptance through the serve path)
 

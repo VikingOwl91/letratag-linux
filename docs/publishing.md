@@ -14,8 +14,17 @@ committed).
 |---|---|---|---|
 | `letratag-protocol` | yes, 2026-10-21 | 0.1.0 | <https://crates.io/crates/letratag-protocol> |
 | `letratag-render` | yes, 2026-10-21 | 0.1.0 | <https://crates.io/crates/letratag-render> |
-| `letratag-transport` | yes, 2026-10-21 | 0.1.0 | <https://crates.io/crates/letratag-transport> |
+| `letratag-transport` | **no (see correction)** | — | <https://crates.io/crates/letratag-transport> (404 at check time) |
 | `letratag-printer` | **no** | — | the `pappl` feature builds against the pinned, patched PAPPL via pkg-config (`scripts/build-pappl.sh`, private prefix); a crates.io build cannot reproduce that, so the published crate would not build its main feature from source |
+
+**Correction 2026-10-21:** an earlier version of this document (and the
+verification record) claimed all three library crates were published at
+0.1.0. Registry evidence shows that is wrong for `letratag-transport`: the
+crates.io API returns 404 "does not exist", the website 404s, the sparse
+index entry is absent, and `cargo search` finds nothing. Only
+`letratag-protocol` and `letratag-render` are published at 0.1.0 (both
+verified via the API and the sparse index). `letratag-transport` was never
+uploaded; it will be published fresh at 0.1.1.
 
 `letratag-printer` is an internal application crate: the PAPPL/IPP service,
 the CLI, the C adapter and the private patched-PAPPL build all belong to
@@ -81,9 +90,20 @@ cargo package --list -p <crate>
 
 ## Publication record
 
-* 2026-10-21: `letratag-protocol` 0.1.0, `letratag-render` 0.1.0,
-  `letratag-transport` 0.1.0 published (links in the table above). Verified
-  via the crates.io API (`max_version` 0.1.0 for each).
+* 2026-10-21: `letratag-protocol` 0.1.0 and `letratag-render` 0.1.0
+  published (links in the table above). Verified via the crates.io API
+  (`max_version` 0.1.0) and the sparse index (0.1.0, not yanked).
+  `letratag-transport` was NOT published; see the correction above.
+* 2026-10-21: the 0.1.1 patch publication (README-carrying packages) is
+  prepared and approved but **blocked**: the first upload
+  (`letratag-protocol` 0.1.1) was rejected with HTTP 403 "this token does
+  not have the required permissions to perform this action". The token
+  worked for the 0.1.0 publishes earlier the same day, so it was likely
+  revoked, replaced, expired, or lost its publish scope afterwards. The
+  token in the git-ignored `.env` was left untouched; revocation is the
+  operator's. Nothing was published at 0.1.1. Note: `cargo publish
+  --dry-run` reached the upload step for 0.1.1, so a dry run is not a
+  reliable permission check.
 * 2026-10-21: dedicated crate READMEs added for all three published crates
   (commits `0208605`, `234fa00`, `68534e1`). Each README is the crate-level
   rustdoc via `#![doc = include_str!("../README.md")]`, so every example is
