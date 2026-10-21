@@ -5,6 +5,18 @@ Status: **published 2026-10-21.** The three library crates are on crates.io
 `letratag-transport` at 0.1.1; operator-approved, see the publication record
 below). `letratag-printer` is deliberately not published.
 
+## Version scheme
+
+* The three library crates carry the workspace version (`0.1.1`) and are
+  versioned independently of the application release. `letratag-transport`
+  carries `0.1.2` because it gained the btleplug backend after its
+  published 0.1.1.
+* `letratag-printer` is the application crate. It carries the release
+  version (`0.3.0`) so that `letratag-printer --version`, the release tag
+  `v0.3.0` and the Arch package `letratag-linux-0.3.0-1` agree.
+* Release tags are `vX.Y.Z` of the application release, not of the library
+  crates.
+
 Assessment date: 2026-10-21, workspace at `95bf1f0`; publication executed
 from `c811dd7` (clean tree, git-ignored `.env` token, no credentials
 committed).
