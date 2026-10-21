@@ -1,4 +1,5 @@
 //! Bounded transports. A successful mock job is not evidence of physical printing.
+#![doc = include_str!("../README.md")]
 
 use async_trait::async_trait;
 use std::{future::Future, time::Duration};

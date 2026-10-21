@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 description = "Bounded mock and BlueZ transports for LetraTag printers, with adaptive GATT chunk sizing"
 repository = "https://github.com/VikingOwl91/letratag-linux"
+readme = "README.md"
 
 [features]
 default = []
