@@ -25,6 +25,7 @@ were performed by this audit.
 | 6 | Minor (release hygiene) | A Python bytecode cache (`scripts/__pycache__/forensic-raster.cpython-314.pyc`) was tracked in git; one document referenced an absolute local path of the reference project. | Fixed, commit `0dacd63` |
 | 7 | Minor (coverage) | No automated check existed for documentation links, although the verification record claimed "documentation links pass". | Added `scripts/check-docs.py` and a CI step, commit `ffff17a` |
 | 8 | Minor (crate metadata) | The published `letratag-transport` 0.1.1 predates the btleplug backend, so the crate content no longer matched the published version; its description and README mentioned BlueZ only. | Fixed, commit `33d4f83`: version 0.1.2 prepared (not published), description, README with a compiled btleplug example, keywords and categories, license text copies with a CI drift check |
+| 9 | Minor (build hygiene) | The documented plain build (`cargo build --locked --workspace`) emitted a dead-code warning for the chunk-mode resolver, which only the `pappl` and `ble` commands use. CI did not catch it because its clippy run uses all features. | Fixed, commit `a9670fe`; every documented feature combination now builds without warnings |
 
 No other release-blocking defect was found. No speculative architectural
 change was made; the protocol, the BLE transports, the mock transport, the
@@ -75,6 +76,7 @@ error semantics and the rendering pipeline were left untouched.
 | `0dacd63` | chore: keep release artifacts clean |
 | `c003eb1` | docs: prepare the v0.3.0 release candidate |
 | `33d4f83` | chore(crates): prepare letratag-transport 0.1.2 for publication |
+| `a9670fe` | fix(build): keep the default build warning-free |
 
 ## 5. Gates run
 
