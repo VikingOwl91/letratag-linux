@@ -1,4 +1,5 @@
 //! Offline LetraTag LT-200B wire encoding. Not verified against real hardware.
+#![doc = include_str!("../README.md")]
 
 use std::{error, fmt};
 
