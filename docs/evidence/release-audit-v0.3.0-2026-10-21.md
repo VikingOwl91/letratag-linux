@@ -26,6 +26,10 @@ were performed by this audit.
 | 7 | Minor (coverage) | No automated check existed for documentation links, although the verification record claimed "documentation links pass". | Added `scripts/check-docs.py` and a CI step, commit `ffff17a` |
 | 8 | Minor (crate metadata) | The published `letratag-transport` 0.1.1 predates the btleplug backend, so the crate content no longer matched the published version; its description and README mentioned BlueZ only. | Fixed, commit `33d4f83`: version 0.1.2 prepared (not published), description, README with a compiled btleplug example, keywords and categories, license text copies with a CI drift check |
 | 9 | Minor (build hygiene) | The documented plain build (`cargo build --locked --workspace`) emitted a dead-code warning for the chunk-mode resolver, which only the `pappl` and `ble` commands use. CI did not catch it because its clippy run uses all features. | Fixed, commit `a9670fe`; every documented feature combination now builds without warnings |
+| 10 | Release blocker (found in the packaging preflight) | The library test suite failed intermittently, about one run in ten, with "queue already owned by another process". The queue lock is an `flock` on the journal's `queue.lock` descriptor. A child process that inherited the descriptor during `fork(2)` keeps the open file description alive, so the lock survived the engine that took it. The document tests spawn helper processes, which is what made the race visible. The same hazard exists in production, where the server spawns Poppler and qpdf while holding the journal lock. | Fixed, commit `14d5eb3`: the engine releases the lock explicitly when it is dropped, with the regression test `queue_lock_is_released_when_the_engine_is_dropped`. Measured: 0 failures in 30 consecutive suite runs, against 4 in 30 before the fix |
+| 11 | Major (packaging) | The Arch recipe was a template with placeholders (`@PROJECT_URL@`, `@PATCHED_PAPPL_PACKAGE@`, `@SOURCE_SHA256@`) and a stale version (0.1.0). It could not be built. | Fixed: `packaging/arch/PKGBUILD` is a complete recipe with a real source URL, a real checksum of the actual release archive, an accurate dependency list and a self-contained patched-PAPPL build. Verified locally with `makepkg --verifysource` and a full build |
+| 12 | Minor (version metadata) | The installed binary reported `letratag-printer 0.1.1` while the release and the Arch package are 0.3.0. | Fixed, commit `81cbbc5`: the application crate carries the release version; the library crates keep the workspace version that is published |
+| 13 | Minor (release process) | There was no reproducible way to produce the release source archive, so the packaging checksum had no defined basis. | Fixed: `scripts/make-release-archive.sh` produces a content-only archive (no commit id, no timestamps, `packaging/arch/` excluded), so its checksum is stable and the recipe can pin it |
 
 No other release-blocking defect was found. No speculative architectural
 change was made; the protocol, the BLE transports, the mock transport, the
@@ -66,6 +70,32 @@ error semantics and the rendering pipeline were left untouched.
   suites are mock-only, and the one example that can transmit requires
   `--acknowledge-unverified-hardware`.
 
+### Packaging and publication verification (packaging preflight)
+
+* **Arch package.** `makepkg --verifysource` passes for both sources
+  (the release archive and the upstream PAPPL 1.4.9 tarball). A full
+  `makepkg` run built `letratag-linux-0.3.0-1-x86_64.pkg.tar.zst` on Arch
+  Linux; the recipe's own `check()` phase ran the complete test suite. The
+  package installs the binary, the mock-only systemd unit, the project
+  license and the PAPPL license and notice, and nothing else.
+* **Runtime dependencies.** The packaged binary links `libcups`, `libavahi`,
+  `libcrypto`, `libjpeg`, `libpng` and `libdbus-1` dynamically and PAPPL
+  statically, so the recipe's dependency list matches the binary exactly.
+  The helper programs it runs (`pdftoppm`, `qpdf`, `prlimit`) are covered as
+  well.
+* **crates.io packaging.** `cargo package -p letratag-transport` assembled
+  13 files and verified them by building the package. The normalized
+  manifest contains no path dependency: the only workspace crates are
+  dev-dependencies on `letratag-protocol` 0.1.1 and `letratag-render` 0.1.1,
+  both already published. All four feature combinations build.
+* **Release archive.** The archive is content-only: two consecutive runs and
+  two different commits with the same tree produce byte-identical archives.
+* **Not verified.** `namcap` is not installed on the maintainer machine and
+  needs root to install, so no `namcap` report exists. The package was built
+  without a chroot (`makepkg` as an unprivileged user), so a distribution
+  build with the full clean chroot was not exercised. The package was not
+  installed with `pacman` and no systemd unit was activated.
+
 ## 4. Changes made by this audit
 
 | Commit | Subject |
@@ -77,6 +107,9 @@ error semantics and the rendering pipeline were left untouched.
 | `c003eb1` | docs: prepare the v0.3.0 release candidate |
 | `33d4f83` | chore(crates): prepare letratag-transport 0.1.2 for publication |
 | `a9670fe` | fix(build): keep the default build warning-free |
+| `14d5eb3` | fix(engine): release the queue lock explicitly when the engine is dropped |
+| `5ba5f55` | packaging: refresh the release archive checksum after the engine fix |
+| `81cbbc5` | chore(release): align the application version and document the artifacts |
 
 ## 5. Gates run
 
@@ -86,8 +119,9 @@ All gates ran offline against the mock transport.
 |---|---|---|
 | Formatting | `cargo fmt --all -- --check`, `rustfmt --check tests/*.rs` | clean |
 | Lint | `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings` | clean |
-| Default tests | `cargo test --locked --workspace` | 113 passed, 0 failed |
-| All-feature tests | `cargo test --locked --workspace --all-features` | 147 passed, 0 failed |
+| Default tests | `cargo test --locked --workspace` | 114 passed, 0 failed |
+| All-feature tests | `cargo test --locked --workspace --all-features` | 148 passed, 0 failed |
+| Library suite, repeated | `cargo test --locked -p letratag-printer --all-features --lib` | 30 consecutive runs, 0 failures (4 in 30 before the queue-lock fix) |
 | PDF-only IPP suite | `bash scripts/test-ipp.sh` | passed |
 | Direct IPP suite | `bash scripts/test-direct-ipp.sh` | passed |
 | Forensic decoder | `python3 scripts/test-forensic-raster.py` | 5 tests, passed |
@@ -95,10 +129,15 @@ All gates ran offline against the mock transport.
 | Calibration diagnostic | `examples/calibration-label.rs --check` | passed (1364 columns, 5 reference lines) |
 | Documentation links | `python3 scripts/check-docs.py` | passed |
 | License inventory | `bash scripts/check-licenses.sh` | passed |
+| Package sources | `makepkg --verifysource` | passed for both sources |
+| Package build | `makepkg` (Arch Linux) | built `letratag-linux-0.3.0-1-x86_64.pkg.tar.zst`, recipe `check()` phase passed |
+| Crate packaging | `cargo package -p letratag-transport` | 13 files, verification build passed |
 
-An earlier run of the same suite failed intermittently; the cause was a full
-`/tmp` tmpfs in the shared environment, not the code. With `TMPDIR` on the
-main filesystem the suite passes consistently (3 of 3 runs).
+An earlier run of the same suite failed intermittently; one cause was a full
+`/tmp` tmpfs in the shared environment, which is not a code defect. The
+other cause was the queue-lock race described in finding 10, which is a
+real defect and is fixed. With `TMPDIR` on the main filesystem the suite
+passes consistently.
 
 ## 6. Hardware evidence evaluated
 
@@ -144,50 +183,55 @@ Not supported, and not claimed:
    on the feed axis only.
 3. CUPS queue integration still needs resolved forwarded media-col and
    post-filter geometry checks.
-4. The systemd template is not live-tested; the packaging template needs a
-   public project URL and a reviewed source archive.
+4. The systemd template is not live-tested; the packaged service was never
+   activated.
 5. The btleplug backend is hardware-accepted, but BlueZ remains the default
    and the recommended real-hardware backend.
+6. The Arch package was built and inspected but not installed with `pacman`,
+   and no `namcap` report exists because `namcap` needs root to install.
 
 ## 9. Packaging and installation status
 
 * Installation from source is reproducible with the documented steps; the
   release notes list the system prerequisites, the private PAPPL build and
   the Direct IPP quick start.
-* `packaging/arch/PKGBUILD.in` and `packaging/systemd/letratag-linux.service`
-  are preparation templates and are not installed or activated by the
-  project.
-* The three library crates are published at 0.1.1; the application crate is
-  deliberately unpublished. The workspace version is unchanged in v0.3.0,
-  so no library republication is required.
+* `packaging/arch/PKGBUILD` is a complete recipe that builds on Arch Linux
+  (`makepkg --verifysource` and a full `makepkg` run both pass). It is not
+  an AUR submission and installs nothing by itself.
+* `packaging/systemd/letratag-linux.service` stays a mock-only template and
+  is never activated by the project.
+* The three library crates are published at 0.1.1;
+  `letratag-transport` 0.1.2 is prepared and verified but not published. The
+  application crate is deliberately unpublished and now carries the release
+  version 0.3.0.
 
 ## 10. Release artifact readiness
 
-* Source tree at the release tag: ready.
-* Release notes draft: `docs/releases/v0.3.0.md`, ready for review.
+* Release archive: `scripts/make-release-archive.sh 0.3.0` produces a
+  reproducible, content-only `letratag-linux-0.3.0.tar`; the Arch recipe
+  pins its checksum.
+* Release notes draft: `docs/releases/v0.3.0.md`, ready for review, with
+  the artifact list, the publication order and the recovery procedure.
 * Changelog: restructured into a `v0.3.0` release-candidate section.
-* Binary package: not produced; the PKGBUILD template needs a public URL
-  and a real source checksum.
+* Binary package: `letratag-linux-0.3.0-1-x86_64.pkg.tar.zst` built and
+  verified locally; publishing it needs the release asset to exist.
+* Prebuilt release binary: buildable with the documented command; not
+  published.
 
 ## 11. Recommendation
 
 **CONDITIONAL GO for v0.3.0.**
 
 The software is validated, the advertisement is now semantically correct,
-the release gates pass, and the user-facing claims match the hardware
-evidence. The condition is procedural: the operator reviews the release
-notes and the packaging template, then performs the tagging and publication
-steps explicitly.
+the release gates pass, the packaging is complete and locally verified, and
+the user-facing claims match the hardware evidence. The condition is
+procedural: the operator reviews the release notes, then performs the
+tagging and publication steps explicitly.
 
 No publication, tag, push or physical print is authorized by this audit.
 
 ### Proposed release sequence (operator-controlled)
 
-1. Review `docs/releases/v0.3.0.md` and this audit.
-2. Confirm the release commit on the default branch.
-3. `git tag -a v0.3.0 -m "v0.3.0"`, then push the tag.
-4. Build the release artifacts from the tagged commit; fill the PKGBUILD
-   template with the public URL and the source archive SHA256.
-5. Publish the library crates only if a new library version is intended
-   (not required for v0.3.0).
-6. Announce the release with the reviewed notes.
+The full sequence, including the checksum dependency on the tag and the
+recovery path for a partial publication, is in
+[docs/releases/v0.3.0.md](../releases/v0.3.0.md).
