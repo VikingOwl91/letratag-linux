@@ -17,8 +17,10 @@
 //! Two resolutions are distinguished explicitly:
 //!
 //! * [`LOGICAL_DPI`] (200 x 200) is the document/layout coordinate system
-//!   that IPP clients are told to use. It is **not** the printer's native
-//!   hardware resolution.
+//!   that IPP clients lay out in. It is **not** the printer's native
+//!   hardware resolution. IPP clients receive the physical raster geometry
+//!   in the standard `printer-resolution` attribute and the logical layout
+//!   resolution in the custom `letratag-logical-resolution` attribute.
 //! * [`CalibrationProfile`] holds the empirical physical raster geometry
 //!   (feed and cross-tape DPI, independently configurable). The named
 //!   default [`CalibrationProfile::LT200B_2026_10_21`] carries the
@@ -49,9 +51,11 @@
 use letratag_protocol::{HEAD_ROWS, MAX_COLUMNS};
 
 /// Logical layout resolution (dots per inch, both axes): the coordinate
-/// system documents are laid out in and the resolution advertised to IPP
-/// clients. This is a layout convention, not the printer's native hardware
-/// resolution; the physical raster geometry is the [`CalibrationProfile`].
+/// system documents are laid out in. This is a layout convention, not the
+/// printer's native hardware resolution; IPP clients receive it as the
+/// custom `letratag-logical-resolution` attribute, while the standard
+/// `printer-resolution` attribute carries the physical raster geometry of
+/// the [`CalibrationProfile`].
 pub const LOGICAL_DPI: f64 = 200.0;
 
 /// Empirical physical raster geometry of the printer: feed-axis and

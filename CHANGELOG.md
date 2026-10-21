@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 (release candidate, not published)
+
+Prepared 2026-10-21 for operator-controlled publication. No tag, no
+publication and no version bump have been made; see
+[release notes](docs/releases/v0.3.0.md) and the
+[release audit](docs/evidence/release-audit-v0.3.0-2026-10-21.md).
 
 ### Documentation, 2026-10-21
 
@@ -89,3 +94,15 @@ No version bump, tag, publication or release was made.
   [hardware validation](docs/evidence/hardware-validation-2026-10-21.md).
   The v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this
   evidence; the operator decides.
+
+### IPP advertisement, 2026-10-21 (unreleased)
+
+* The standard `printer-resolution` attribute now carries the physical raster
+  geometry (315 x 160 dpi) of the calibration profile. RFC 8011 defines that
+  attribute as the resolution at which the printer prints; the logical
+  200 x 200 DPI layout system is an input convention of the rendering
+  pipeline, not the printer's resolution.
+* The logical layout resolution moves to the custom
+  `letratag-logical-resolution` attribute and replaces the now-redundant
+  `letratag-physical-resolution` attribute.
+* The Direct IPP suite asserts all three values against the mock server.
