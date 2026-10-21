@@ -138,8 +138,9 @@ the pinned SHA256. The recipe builds the patched PAPPL from the pinned
 upstream tarball and links it statically, so the installed package has no
 runtime PAPPL dependency. See [packaging/README.md](packaging/README.md).
 
-A systemd unit template is in `packaging/systemd/`. It is mock-only, it is
-not installed by the project, and it is never started automatically.
+A mock-only systemd unit template is in `packaging/systemd/`. The Arch
+package installs it; a source build does not. It is never started
+automatically. See [Running the IPP service](#running-the-ipp-service).
 
 ## Quick start: a safe first print
 
@@ -229,7 +230,8 @@ cargo build --locked --release -p letratag-printer --features pappl,ble
 cargo build --locked --release -p letratag-printer --features pappl,btleplug
 ```
 
-Then start the endpoint with the matching transport:
+Then start the endpoint with the matching transport. Stop any mock server
+already using port 8631 first:
 
 ```sh
 # Replace <device-address> with your printer's Bluetooth address.
@@ -239,6 +241,9 @@ target/release/letratag-printer serve \
   --state "$PWD/test-output/hw-journal" --spool "$PWD/test-output/hw-spool" \
   --port 8631
 ```
+
+`serve` stays running and waits for IPP jobs. **Starting it does not print a
+label or connect to the printer.** Leave this terminal open.
 
 `<device-address>` is a placeholder and the command will not run as written.
 Find the printer's address with the standard BlueZ tools, for example:
@@ -252,6 +257,43 @@ bluetoothctl info <address>   # confirms which device an address belongs to
 The address is the MAC-style identifier shown by `bluetoothctl devices`. The
 project's own `hardware-info` command needs the address as input, so it
 cannot be used to find one.
+
+### Submit one label
+
+In a second terminal, change to the same checkout. Close the printer lid,
+check that tape is loaded and the printer is powered on. Generate the
+same 50 x 12 mm test PDF used in the mock quick start:
+
+```sh
+mkdir -p test-output
+rustc --edition=2024 tests/make-pdf.rs -o test-output/make-pdf
+test-output/make-pdf > test-output/label-50.pdf
+```
+
+The next command submits a **real print job and consumes tape**. Run it once:
+
+```sh
+lp -h 127.0.0.1:8631 -d letratag \
+  -o media=custom_default_12x50mm -o print-scaling=none \
+  test-output/label-50.pdf
+```
+
+Keep `-h` and `-d`: otherwise the job can go to a system CUPS queue instead.
+Watch the server terminal for diagnostics. An `lp` request ID means the job
+was accepted, not that a label came out. To query it without resubmitting,
+replace `1` below with the numeric suffix of the returned `letratag-N` ID:
+
+```sh
+ipptool -tv -T 5 -d jobid=1 \
+  ipp://127.0.0.1:8631/ipp/print examples/get-job.test
+```
+
+Hardware jobs deliberately end uncertain, with an aborted IPP job and an
+inflight journal. Inspect the printer output even if the client reports an
+error. Do not retry or delete the journal to unblock printing; follow the
+[journal recovery procedure](docs/security.md).
+
+### Hardware options and inspection
 
 * The process user needs access to the system BlueZ D-Bus API, the same
   permission `bluetoothctl` uses. No pairing is required and no persistent
@@ -275,16 +317,44 @@ existing ones must be mode 0700. Do not point them at `/etc/cups` or an
 existing CUPS spool directory.
 
 Read-only hardware inspection is available separately. It connects to the
-device and reads its GATT characteristics, but never sends a print job, and
-it needs the same BLE-enabled build:
+device and reads its GATT characteristics, but never sends a print job.
+This command specifically requires the `ble` feature, even if you use
+`btleplug` for printing:
 
 ```sh
+cargo build --locked --release -p letratag-printer --features pappl,ble
 target/release/letratag-printer hardware-info --address '<device-address>' --watch 15
 ```
 
 The full physical print procedure, its preconditions and the journal
 handling rules are in the
 [hardware acceptance guide](docs/hardware-acceptance.md).
+
+## Running the IPP service
+
+`letratag-printer serve` is the long-running IPP service. Keep it running
+while submitting jobs from another terminal or application. Stopping it
+makes the endpoint unavailable; starting it again does not submit a label.
+No system CUPS service is required for Direct IPP.
+
+The commands above run it in the foreground. Use Ctrl+C in its terminal to
+stop it. Run only one instance on port 8631, whether started manually or
+through systemd.
+
+The provided [systemd unit](packaging/systemd/letratag-linux.service) is a
+**mock-only development service**, not a ready-to-use hardware service. It
+expects `/usr/bin/letratag-printer`, uses private state under
+`/var/lib/letratag-linux`, and has automatic restarts disabled. Even a
+BLE-enabled binary uses mock transport with this unit's default command;
+starting it will not send anything to your printer.
+
+For real hardware, use the explicit foreground command in
+[Printing on real hardware](#printing-on-real-hardware). A hardware systemd
+deployment needs its own transport/address configuration and verified BlueZ
+D-Bus permissions for the service user. Preserve its private journal across
+restarts, and do not use restarts to bypass an uncertain job. The supplied
+unit has not been validated as a hardware service; see the
+[packaging notes](packaging/README.md).
 
 ## Known limitations
 
