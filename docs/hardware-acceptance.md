@@ -319,10 +319,12 @@ to 160 dpi; the BlueZ transport is wired into the IPP serve path behind
    system-wide CUPS change.
 4. Host adapter stability: the Bluetooth adapter power-cycles every 60 s
    (blueman-applet polling plus USB autosuspend on the Realtek dongle, hci
-   index churn). A hardware-backed queue needs a policy for this: pause
-   the applet during use, or accept operator-driven retries of
-   SafeTransport failures; never automatic retransmission of uncertain
-   jobs.
+   index churn). Observed 2026-10-21: a running blueman-applet stops BLE
+   discovery within about a second of it starting and toggles adapter
+   properties (`Pairable: no` changed), and the BlueZ device cache was lost
+   entirely. A hardware-backed queue needs a policy for this: pause the
+   applet during use, or accept operator-driven retries of SafeTransport
+   failures; never automatic retransmission of uncertain jobs.
 5. Fault injection: disconnect during transfer, power-off mid-job,
    lid/cassette conditions with fresh batteries, and scheduler
    resubmission behavior (the journal is not cross-request idempotency).
@@ -342,3 +344,14 @@ Physical hardware test: executed 2026-10-20. First print succeeded (attempt
 7), calibration batch A/B confirmed repeatability and geometry. Evidence:
 docs/evidence/hardware-attempt-7-2026-10-20-success.md and
 docs/evidence/hardware-calibration-batch-2026-10-20.md.
+
+BLE lifecycle test: executed 2026-10-21 (non-printing; see
+[protocol.md](protocol.md) section 2 "Connection lifecycle"). Discovery and
+connection succeed without pairing; the device object is not guaranteed to
+exist before discovery; a local disconnect does not immediately remove it.
+
+End-to-end acceptance print through the serve path (PDF → IPP/PAPPL → BLE):
+in progress. A first attempt on 2026-10-21 failed at connect
+(`Error::Connect`, nothing sent, no journal) because the BlueZ device cache
+had been lost and the printer was unreachable; the transport now resolves
+absent devices via bounded discovery (commits `6b03012`, `26227fc`).

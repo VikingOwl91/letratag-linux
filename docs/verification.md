@@ -85,6 +85,23 @@ final state (commits `6c75613`..`eb2ba45`):
   caps-file lookup and malformed-caps failure, and the per-job
   diagnostics parameters block through a live mock serve.
 
+### Addendum 2026-10-21 (BLE connection lifecycle)
+
+An independent, non-printing BlueZ lifecycle test on the physical printer
+found that the device object is not guaranteed to exist before discovery
+and that connection succeeds without pairing (see
+[protocol.md](protocol.md) section 2). The transport gained bounded LE
+discovery resolution for absent devices (`resolve_device`, 15 s / 256
+events, exact address match) and reuse of an already-connected link;
+`hardware-info` shares the same lifecycle. Offline gates re-run on the
+final state (commits `6b03012`, `26227fc`): default workspace 67 tests
+passed, all-features 86 tests passed, zero failed; clippy with
+`-D warnings` clean; rustfmt clean; debug and release all-feature builds
+passed; the loopback IPP mock suite passed; license inventory passed. The
+new tests cover exact-address matching, stream end, event cap and timeout
+bounding of the discovery wait, and the distinct actionable
+`DeviceNotFound` error.
+
 ## Final isolated IPP results
 
 The independent executing verifier ran the full script successfully, exit 0:

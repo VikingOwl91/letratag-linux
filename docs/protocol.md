@@ -77,6 +77,34 @@ connection uses an explicitly configured address. Services are resolved through
 BlueZ, and RX is subscribed before the first TX write. Successful local GATT
 acceptance is not proof of printing.
 
+### Connection lifecycle (hardware-verified 2026-10-21, non-printing)
+
+An independent BlueZ lifecycle test on the physical printer established:
+
+* The BlueZ device object is **not guaranteed to exist before discovery**:
+  after the device cache was lost, the printer was absent from
+  `bluetoothctl devices` and `info` returned `not available`.
+* A fresh LE scan rediscovered it immediately; `Paired: no`, `Bonded: no`,
+  `Trusted: no`.
+* `connect` succeeded **without pairing**; `disconnect` succeeded with
+  `org.bluez.Reason.Local`; the device object remained visible afterwards.
+* The advertised name changed from `Letratag 90E5B149DAAE` to `Letratag`
+  after connection, and additional standard GATT service UUIDs appeared.
+* The earlier disappearance (observed during the acceptance attempt) is
+  consistent with BlueZ eventually removing a temporary unpaired device;
+  the exact removal timing is unproven.
+
+Transport consequences (implemented 2026-10-21): the connect path resolves
+the configured device first — if the adapter does not know the address, it
+runs bounded LE discovery (15 s, 256 events, exact address match, LE-only
+filter best effort) and only then connects. Discovery never pairs, bonds or
+trusts. If the device is already connected, the existing link is reused
+instead of failing with a second `Connect`. Connection-establishment
+failures (including `DeviceNotFound`, e.g. the printer auto-powered-off
+after ~5 min idle) remain distinct from failures after transmission
+begins: they reject the job safely with nothing sent, while any failure
+after the first write stays uncertain with no automatic replay.
+
 ### Short command: set cassette type (ESC M)
 
 S2 `docs/protocol/letratag-bt.md` documents a stand-alone payload on the
