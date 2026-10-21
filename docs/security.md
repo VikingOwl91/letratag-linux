@@ -90,7 +90,10 @@ engine blocked. The first write may already have been partially accepted when
 the host reports an error. Therefore, no retry after a timeout, status error,
 disconnect, panic, or process termination.
 
-A file lock prevents two engine processes from using the same journal. A mutex
+A file lock prevents two engine processes from using the same journal. The
+lock is released explicitly when the engine is dropped, so a helper process
+that inherited the lock descriptor while it was starting cannot keep the
+journal locked after the engine is gone. A mutex
 also serializes all jobs within the IPP process. Separate journal paths do
 **not** protect against two deliberately started hardware programs accessing
 the same device. Allow only one owner before the first real test.

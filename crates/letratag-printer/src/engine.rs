@@ -342,6 +342,20 @@ impl Engine {
     }
 }
 
+/// Release the queue lock explicitly when the engine is dropped. The lock
+/// belongs to the open file description, and a child process that inherited
+/// the descriptor during fork(2) keeps that description alive. Without an
+/// explicit unlock the queue would stay locked after the engine is dropped,
+/// and the next engine would be refused with "queue already owned by
+/// another process" even though nothing owns the queue any more.
+impl Drop for Engine {
+    fn drop(&mut self) {
+        unsafe {
+            libc::flock(std::os::fd::AsRawFd::as_raw_fd(&self._lock), libc::LOCK_UN);
+        }
+    }
+}
+
 fn write_private(path: &Path, data: &[u8]) -> std::io::Result<()> {
     let mut f = OpenOptions::new()
         .write(true)
@@ -430,6 +444,20 @@ mod tests {
         assert!(other.writes().is_empty());
         drop(engine);
         assert!(Engine::new(dir.path(), false).unwrap().is_blocked());
+    }
+    #[tokio::test]
+    async fn queue_lock_is_released_when_the_engine_is_dropped() {
+        let dir = private_tempdir();
+        let engine = Engine::new(dir.path(), false).unwrap();
+        // A second descriptor for the same open file description, as a
+        // child process inherits it across fork(2).
+        let inherited = engine._lock.try_clone().unwrap();
+        drop(engine);
+        assert!(
+            Engine::new(dir.path(), false).is_ok(),
+            "the queue lock is released with the engine, not with the descriptor"
+        );
+        drop(inherited);
     }
     #[tokio::test]
     async fn connect_failure_is_safe_but_status_error_is_not() {
