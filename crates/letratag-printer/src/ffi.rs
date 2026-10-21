@@ -1,4 +1,4 @@
-use crate::{document, engine::Engine};
+use crate::{document, engine::Engine, geometry};
 use letratag_protocol::{Profile, Raster};
 use letratag_transport::{ChunkMode, MockTransport};
 use std::ffi::{CString, OsStr, c_char, c_int, c_void};
@@ -153,7 +153,7 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
     let model = match &app.transport {
         TransportKind::Mock => CString::new(format!(
             "DYMO LetraTag 200B MOCK - {}-dpi layout",
-            document::LAYOUT_DPI as u32
+            geometry::RESOLUTION_DPI as u32
         ))
         .unwrap(),
         TransportKind::Bluez { .. } => {
@@ -161,11 +161,11 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
         }
     };
     let config = Config {
-        dpi: document::LAYOUT_DPI as u32,
-        media_width: 1200,
-        min_length: 1000,
-        max_length: 20000,
-        default_length: 5000,
+        dpi: geometry::RESOLUTION_DPI as u32,
+        media_width: geometry::MEDIA_WIDTH,
+        min_length: geometry::MEDIA_MIN_LENGTH,
+        max_length: geometry::MEDIA_MAX_LENGTH,
+        default_length: geometry::MEDIA_DEFAULT_LENGTH,
         max_job_bytes: document::MAX_FILE as usize,
         model: model.as_ptr(),
     };
@@ -207,8 +207,8 @@ pub unsafe extern "C" fn lt_rs_pdf(
             || path.is_null()
             || len == 0
             || len > 4096
-            || media_width != 1200
-            || !(1000..=20000).contains(&media_length)
+            || media_width != geometry::MEDIA_WIDTH
+            || !(geometry::MEDIA_MIN_LENGTH..=geometry::MEDIA_MAX_LENGTH).contains(&media_length)
             || no_scaling == 0
         {
             return 1;
@@ -217,7 +217,7 @@ pub unsafe extern "C" fn lt_rs_pdf(
         let Ok(raster) = document::pdf(Path::new(OsStr::from_bytes(bytes))) else {
             return 1;
         };
-        let requested = (f64::from(media_length) * document::LAYOUT_DPI / 2540.0).round() as usize;
+        let requested = geometry::media_length_to_dots(media_length);
         if raster.width().abs_diff(requested) > 1 {
             return 1;
         }

@@ -4,6 +4,7 @@ pub mod document;
 pub mod engine;
 #[cfg(feature = "pappl")]
 pub mod ffi;
+pub mod geometry;
 #[cfg(feature = "ble")]
 pub mod hardware_info;
 pub mod page;

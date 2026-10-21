@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use letratag_printer::{document, engine::Engine};
+use letratag_printer::{document, engine::Engine, geometry};
 use letratag_protocol::Profile;
 use letratag_transport::MockTransport;
 use std::path::PathBuf;
@@ -256,7 +256,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "preview: {} columns x 32 protocol rows, {} dpi layout",
                 raster.width(),
-                document::LAYOUT_DPI as u32
+                geometry::RESOLUTION_DPI as u32
             );
         }
         Commands::Mock {

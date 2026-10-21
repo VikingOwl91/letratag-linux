@@ -1,3 +1,4 @@
+use crate::geometry;
 use letratag_protocol::Raster;
 use std::io::{Cursor, Read};
 use std::os::unix::fs::PermissionsExt;
@@ -8,15 +9,9 @@ use wait_timeout::ChildExt;
 
 pub const MAX_FILE: u64 = 8 * 1024 * 1024;
 
-/// Layout resolution used for PDF page geometry and IPP media conversion.
-/// Measured on the LT200B on 2026-10-20: feed pitch 158.9 dpi, across
-/// ~160 dpi, isotropic; matches the manufacturer's 160 DPI specification
-/// (docs/evidence/hardware-calibration-batch-2026-10-20.md).
-pub const LAYOUT_DPI: f64 = 160.0;
-
-/// Pixels for a millimeter length at the layout resolution.
+/// Pixels for a millimeter length at the device resolution.
 fn px(mm: f64) -> f64 {
-    mm * LAYOUT_DPI / 25.4
+    geometry::mm_to_dots(mm)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +24,7 @@ pub enum Error {
         "PDF requires exactly one 12-mm page, at most 200 mm long, with ink inside the centered 30-row printable area"
     )]
     Geometry,
+
     #[error("document I/O failed")]
     Io(#[from] std::io::Error),
 }
@@ -131,7 +127,7 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
         .arg("/usr/bin/pdftoppm")
         .args(["-f", "1", "-l", "2"])
         .arg("-r")
-        .arg((LAYOUT_DPI as u32).to_string())
+        .arg((geometry::RESOLUTION_DPI as u32).to_string())
         .args(["-gray", "-png"])
         .arg(&input)
         .arg(&prefix)
@@ -164,12 +160,13 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
         .into_dimensions()
         .map_err(|_| Error::Conversion)?;
     let (w, h) = (dims.0 as usize, dims.1 as usize);
-    // One 12 mm page, at most 200 mm long, rendered at the layout dpi.
-    // The 12 mm side allows one pixel of rounding at either end.
-    let page = px(12.0);
+    // One 12 mm page, at most 200 mm long, rendered at the device
+    // resolution. The 12 mm side allows one pixel of rounding at either
+    // end.
+    let page = px(geometry::TAPE_WIDTH_MM);
     let page_lo = page.floor() as usize;
     let page_hi = page.ceil() as usize;
-    let max_len = px(200.0).ceil() as usize;
+    let max_len = px(geometry::MAX_LENGTH_MM).ceil() as usize;
     let landscape = (page_lo..=page_hi).contains(&h) && (1..=max_len).contains(&w);
     let portrait = (page_lo..=page_hi).contains(&w) && (1..=max_len).contains(&h);
     if !landscape && !portrait {
@@ -179,8 +176,10 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
         .map_err(|_| Error::Conversion)?
         .into_luma8();
     let (feed, cross) = if landscape { (w, h) } else { (h, w) };
-    let start = (cross - 30) / 2;
-    let mut out = vec![0; feed * 32];
+    // The printable band: PRINTABLE_ROWS centered in the rendered page,
+    // mapped 1:1 onto the centered content rows of the 32-row wire frame.
+    let start = geometry::band_start(cross);
+    let mut out = vec![0; feed * geometry::FRAME_ROWS];
     for x in 0..feed {
         for y in 0..cross {
             let (ix, iy) = if landscape {
@@ -191,10 +190,10 @@ pub fn pdf(path: &Path) -> Result<Raster, Error> {
             if image.get_pixel(ix as u32, iy as u32)[0] >= 128 {
                 continue;
             }
-            if !(start..start + 30).contains(&y) {
+            if !(start..start + geometry::PRINTABLE_ROWS).contains(&y) {
                 return Err(Error::Geometry);
             }
-            out[(1 + y - start) * feed + x] = 1;
+            out[geometry::wire_row(y - start) * feed + x] = 1;
         }
     }
     Raster::new(feed, out).map_err(|_| Error::Geometry)
