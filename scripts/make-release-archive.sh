@@ -51,6 +51,21 @@ fi
 rm -f "$archive"
 git archive --format=tar --prefix="$name/" "$commit" -- . ':(exclude)packaging/arch' > "$archive"
 
+# `git archive` writes a pax global header that carries the commit id, which
+# would make the archive bytes depend on the commit rather than on its
+# content. Drop that header so the archive describes the file tree only.
+python3 - "$archive" <<'PY'
+import sys
+
+path = sys.argv[1]
+data = open(path, "rb").read()
+
+if data[0:100].rstrip(b"\0") == b"pax_global_header" and data[156:157] == b"g":
+    size = int(data[124:136].rstrip(b"\0 ").decode() or "0", 8)
+    offset = 512 + ((size + 511) // 512) * 512
+    open(path, "wb").write(data[offset:])
+PY
+
 echo "commit:  $commit"
 echo "archive: $archive"
 echo "sha256:  $(sha256sum "$archive" | cut -d' ' -f1)"
