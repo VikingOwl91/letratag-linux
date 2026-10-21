@@ -17,14 +17,14 @@ Mock transport only (safe default, no Bluetooth):
 
 ```toml
 [dependencies]
-letratag-transport = "0.1.0"
+letratag-transport = "0.1.1"
 ```
 
 Real hardware over BlueZ:
 
 ```toml
 [dependencies]
-letratag-transport = { version = "0.1.0", features = ["ble"] }
+letratag-transport = { version = "0.1.1", features = ["ble"] }
 ```
 
 The `ble` feature needs the D-Bus development library at build time and access

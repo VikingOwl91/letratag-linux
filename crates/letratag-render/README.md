@@ -15,7 +15,7 @@ Part of [letratag-linux](https://github.com/VikingOwl91/letratag-linux).
 
 ```toml
 [dependencies]
-letratag-render = "0.1.0"
+letratag-render = "0.1.1"
 ```
 
 Rust 1.98 or newer. No default features; there are no feature flags. PNG
