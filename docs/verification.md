@@ -126,10 +126,24 @@ on crates.io (API 404, empty sparse-index entry, no `cargo search`
 result); it was never uploaded. See the correction in
 [publishing.md](publishing.md). `letratag-printer` remains unpublished by
 design. The temporary publication token was left for the operator to
-revoke; no credentials were committed (`.env` is git-ignored). The 0.1.1
-patch publication (README-carrying packages) is blocked by a token
-permission error (HTTP 403) on the first upload; nothing was published
-at 0.1.1.
+revoke; no credentials were committed (`.env` is git-ignored).
+
+### Addendum 2026-10-21 (0.1.1 patch publication completed)
+
+After the operator updated the publication token, the README-carrying
+0.1.1 patch packages were published in dependency order:
+`letratag-protocol` 0.1.1, `letratag-render` 0.1.1, `letratag-transport`
+0.1.1 (transport's first published version; 0.1.0 never existed). Each
+publication was verified three ways: crates.io API (`max_version` 0.1.1),
+the sparse index (0.1.1 present, not yanked), and an actual download of
+the published `.crate` (README.md present, version 0.1.1). The published
+`letratag-render` 0.1.1 lists `letratag-protocol ^0.1.1` as its
+dependency. The 12 README doc-tests passed on the packaged state before
+publication (default workspace 79 tests, all-features 98 tests, zero
+failed; clippy `-D warnings` clean; rustfmt clean; debug and release
+builds passed). A first 0.1.1 attempt was blocked by a token permission
+error (HTTP 403); nothing was published in that attempt. The token was
+left for the operator to revoke.
 
 ### Addendum 2026-10-21 (end-to-end hardware acceptance through the serve path)
 

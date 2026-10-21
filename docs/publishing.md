@@ -10,11 +10,11 @@ committed).
 
 ## Crate-by-crate assessment
 
-| Crate | Published | Version | crates.io |
+| Crate | Published | Versions | crates.io |
 |---|---|---|---|
-| `letratag-protocol` | yes, 2026-10-21 | 0.1.0 | <https://crates.io/crates/letratag-protocol> |
-| `letratag-render` | yes, 2026-10-21 | 0.1.0 | <https://crates.io/crates/letratag-render> |
-| `letratag-transport` | **no (see correction)** | — | <https://crates.io/crates/letratag-transport> (404 at check time) |
+| `letratag-protocol` | yes, 2026-10-21 | 0.1.0, **0.1.1** | <https://crates.io/crates/letratag-protocol> |
+| `letratag-render` | yes, 2026-10-21 | 0.1.0, **0.1.1** | <https://crates.io/crates/letratag-render> |
+| `letratag-transport` | yes, 2026-10-21 | **0.1.1** (0.1.0 was never published; see correction) | <https://crates.io/crates/letratag-transport> |
 | `letratag-printer` | **no** | — | the `pappl` feature builds against the pinned, patched PAPPL via pkg-config (`scripts/build-pappl.sh`, private prefix); a crates.io build cannot reproduce that, so the published crate would not build its main feature from source |
 
 **Correction 2026-10-21:** an earlier version of this document (and the
@@ -94,16 +94,22 @@ cargo package --list -p <crate>
   published (links in the table above). Verified via the crates.io API
   (`max_version` 0.1.0) and the sparse index (0.1.0, not yanked).
   `letratag-transport` was NOT published; see the correction above.
-* 2026-10-21: the 0.1.1 patch publication (README-carrying packages) is
-  prepared and approved but **blocked**: the first upload
-  (`letratag-protocol` 0.1.1) was rejected with HTTP 403 "this token does
-  not have the required permissions to perform this action". The token
-  worked for the 0.1.0 publishes earlier the same day, so it was likely
-  revoked, replaced, expired, or lost its publish scope afterwards. The
-  token in the git-ignored `.env` was left untouched; revocation is the
-  operator's. Nothing was published at 0.1.1. Note: `cargo publish
-  --dry-run` reached the upload step for 0.1.1, so a dry run is not a
+* 2026-10-21: the 0.1.1 patch publication (README-carrying packages) was
+  first **blocked** by a token permission error (HTTP 403 on the first
+  upload); nothing was published at 0.1.1 in that attempt. Note: `cargo
+  publish --dry-run` reached the upload step, so a dry run is not a
   reliable permission check.
+* 2026-10-21: after the operator updated the token, the 0.1.1
+  publication completed in dependency order: `letratag-protocol`,
+  `letratag-render`, `letratag-transport`. Each was verified via the
+  crates.io API (`max_version` 0.1.1), the sparse index (0.1.1, not
+  yanked), and an actual download of the published `.crate` (README.md
+  present, version 0.1.1). The published `letratag-render` 0.1.1 depends
+  on `letratag-protocol ^0.1.1` (registry dependency listing). The
+  workspace version bump to 0.1.1 is commit `b210d4c`; the doc-tests
+  (12 across the three crates) passed on the packaged state before
+  publication. The token in the git-ignored `.env` was left for the
+  operator to revoke.
 * 2026-10-21: dedicated crate READMEs added for all three published crates
   (commits `0208605`, `234fa00`, `68534e1`). Each README is the crate-level
   rustdoc via `#![doc = include_str!("../README.md")]`, so every example is
@@ -111,13 +117,13 @@ cargo package --list -p <crate>
   package (`readme = "README.md"` in each manifest, confirmed with
   `cargo package --list`). The published 0.1.0 versions do not contain the
   READMEs; publishing them requires a new version.
-* Recommended next publication: **0.1.1** (patch) of the three library
-  crates. README and packaging-metadata additions are non-breaking, so a
-  patch bump is the correct semver level. Because all crates share the
-  workspace version, bump `[workspace.package] version` to `0.1.1` (the
-  unpublished `letratag-printer` carries the same version locally and is
-  unaffected), then publish in dependency order: protocol, render,
-  transport. Do not publish `letratag-printer`.
+* The recommended 0.1.1 patch publication (see above) is **done**; the
+  strategy was: README and packaging-metadata additions are
+  non-breaking, so a patch bump is the correct semver level. Because all
+  crates share the workspace version, `[workspace.package] version` moved
+  to `0.1.1` (the unpublished `letratag-printer` carries the same version
+  locally and is unaffected). Published in dependency order: protocol,
+  render, transport. `letratag-printer` was not published.
 * Versioning note: the crate versions (0.1.x) and the application's GitHub
   release tags (v0.2.0) have diverged. The library crates are versioned
   independently of the application releases; keep the lockstep workspace
