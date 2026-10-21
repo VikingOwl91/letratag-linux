@@ -25,6 +25,7 @@ were performed by this audit.
 | 5 | Minor (test quality) | `crates/letratag-printer/src/engine.rs` contained a vacuous assertion (`assert!(... || true)`) in the btleplug connect-failure test. | Fixed, commit `ffff17a`, replaced with the real lock-file contract |
 | 6 | Minor (release hygiene) | A Python bytecode cache (`scripts/__pycache__/forensic-raster.cpython-314.pyc`) was tracked in git; one document referenced an absolute local path of the reference project. | Fixed, commit `0dacd63` |
 | 7 | Minor (coverage) | No automated check existed for documentation links, although the verification record claimed "documentation links pass". | Added `scripts/check-docs.py` and a CI step, commit `ffff17a` |
+| 8 | Minor (crate metadata) | The published `letratag-transport` 0.1.1 predates the btleplug backend, so the crate content no longer matched the published version; its description and README mentioned BlueZ only. | Fixed, commit `33d4f83`: version 0.1.2 prepared (not published), description, README with a compiled btleplug example, keywords and categories, license text copies with a CI drift check |
 
 No other release-blocking defect was found. No speculative architectural
 change was made; the protocol, the BLE transports, the mock transport, the
@@ -73,6 +74,8 @@ error semantics and the rendering pipeline were left untouched.
 | `8e08995` | docs: refresh the living docs for the calibrated model and the IPP advertisement |
 | `ffff17a` | test: fix the release gates CI would fail on |
 | `0dacd63` | chore: keep release artifacts clean |
+| `c003eb1` | docs: prepare the v0.3.0 release candidate |
+| `33d4f83` | chore(crates): prepare letratag-transport 0.1.2 for publication |
 
 ## 5. Gates run
 
@@ -82,8 +85,8 @@ All gates ran offline against the mock transport.
 |---|---|---|
 | Formatting | `cargo fmt --all -- --check`, `rustfmt --check tests/*.rs` | clean |
 | Lint | `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings` | clean |
-| Default tests | `cargo test --locked --workspace` | 112 passed, 0 failed |
-| All-feature tests | `cargo test --locked --workspace --all-features` | 146 passed, 0 failed |
+| Default tests | `cargo test --locked --workspace` | 113 passed, 0 failed |
+| All-feature tests | `cargo test --locked --workspace --all-features` | 147 passed, 0 failed |
 | PDF-only IPP suite | `bash scripts/test-ipp.sh` | passed |
 | Direct IPP suite | `bash scripts/test-direct-ipp.sh` | passed |
 | Forensic decoder | `python3 scripts/test-forensic-raster.py` | 5 tests, passed |
