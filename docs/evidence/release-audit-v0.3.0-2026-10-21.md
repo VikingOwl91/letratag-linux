@@ -24,7 +24,7 @@ were performed by this audit.
 | 5 | Minor (test quality) | `crates/letratag-printer/src/engine.rs` contained a vacuous assertion (`assert!(... || true)`) in the btleplug connect-failure test. | Fixed, commit `ffff17a`, replaced with the real lock-file contract |
 | 6 | Minor (release hygiene) | A Python bytecode cache (`scripts/__pycache__/forensic-raster.cpython-314.pyc`) was tracked in git; one document referenced an absolute local path of the reference project. | Fixed, commit `0dacd63` |
 | 7 | Minor (coverage) | No automated check existed for documentation links, although the verification record claimed "documentation links pass". | Added `scripts/check-docs.py` and a CI step, commit `ffff17a` |
-| 8 | Minor (crate metadata) | The published `letratag-transport` 0.1.1 predates the btleplug backend, so the crate content no longer matched the published version; its description and README mentioned BlueZ only. | Fixed, commit `33d4f83`: version 0.1.2 prepared (not published), description, README with a compiled btleplug example, keywords and categories, license text copies with a CI drift check |
+| 8 | Minor (crate metadata) | The published `letratag-transport` 0.1.1 predates the btleplug backend, so the crate content no longer matched the published version; its description and README mentioned BlueZ only. | Fixed, commit `33d4f83`: version 0.1.2, description, README with a compiled btleplug example, keywords and categories, license text copies with a CI drift check. Published to crates.io 2026-10-21 |
 | 9 | Minor (build hygiene) | The documented plain build (`cargo build --locked --workspace`) emitted a dead-code warning for the chunk-mode resolver, which only the `pappl` and `ble` commands use. CI did not catch it because its clippy run uses all features. | Fixed, commit `a9670fe`; every documented feature combination now builds without warnings |
 | 10 | Release blocker (found in the packaging preflight) | The library test suite failed intermittently, about one run in ten, with "queue already owned by another process". The queue lock is an `flock` on the journal's `queue.lock` descriptor. A child process that inherited the descriptor during `fork(2)` keeps the open file description alive, so the lock survived the engine that took it. The document tests spawn helper processes, which is what made the race visible. The same hazard exists in production, where the server spawns Poppler and qpdf while holding the journal lock. | Fixed, commit `14d5eb3`: the engine releases the lock explicitly when it is dropped, with the regression test `queue_lock_is_released_when_the_engine_is_dropped`. Measured: 0 failures in 30 consecutive suite runs, against 4 in 30 before the fix |
 | 11 | Major (packaging) | The Arch recipe was a template with placeholders (`@PROJECT_URL@`, `@PATCHED_PAPPL_PACKAGE@`, `@SOURCE_SHA256@`) and a stale version (0.1.0). It could not be built. | Fixed: `packaging/arch/PKGBUILD` is a complete recipe with a real source URL, a real checksum of the actual release archive, an accurate dependency list and a self-contained patched-PAPPL build. Verified locally with `makepkg --verifysource` and a full build |
@@ -200,10 +200,10 @@ Not supported, and not claimed:
   an AUR submission and installs nothing by itself.
 * `packaging/systemd/letratag-linux.service` stays a mock-only template and
   is never activated by the project.
-* The three library crates are published at 0.1.1;
-  `letratag-transport` 0.1.2 is prepared and verified but not published. The
-  application crate is deliberately unpublished and now carries the release
-  version 0.3.0.
+* The three library crates are published: `letratag-protocol` 0.1.1,
+  `letratag-render` 0.1.1 and `letratag-transport` 0.1.2 (published
+  2026-10-21). The application crate is deliberately unpublished and carries
+  the release version 0.3.0.
 
 ## 10. Release artifact readiness
 
