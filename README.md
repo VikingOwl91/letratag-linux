@@ -28,9 +28,12 @@ that a physical label came out of the printer.
 * **Two BLE backends.** BlueZ over D-Bus is the default real-hardware
   backend; an optional [btleplug](docs/btleplug-migration-plan.md) backend is
   retained as an alternative.
-* **Mock transport.** Every command can run against an in-process mock that
-  records the exact bytes a job would send. Mock is the default everywhere,
-  and no test or example can reach a printer.
+* **Mock transport.** The printing workflow defaults to an in-process mock
+  that records the exact bytes a job would send. The mock quick start and
+  the mock test suites documented here never transmit to hardware. Real
+  hardware always needs an explicit `--transport bluez` or
+  `--transport btleplug`, and the read-only `hardware-info` command does
+  connect to a device even though it never submits a print job.
 * **Preview.** Render a PNG or a PDF to a wire-raster PNG without printing
   anything.
 * **Calibrated geometry.** Documents are laid out in a logical 200 x 200 DPI
@@ -41,9 +44,9 @@ that a physical label came out of the printer.
 
 ## Requirements
 
-Hardware printing needs Linux with **BlueZ** and **D-Bus**. The mock path
-needs neither. Build dependencies are listed with Debian/Ubuntu package
-names, as used by CI:
+Hardware printing needs Linux with **BlueZ** and **D-Bus** at runtime. The
+mock path needs neither. Build dependencies are listed with Debian/Ubuntu
+package names, as used by CI:
 
 | Purpose | Packages |
 |---|---|
@@ -52,6 +55,11 @@ names, as used by CI:
 | IPP clients (`lp`, `lpr`, `ipptool`) | `cups-client` `cups-ipp-utils` |
 | PDF path at runtime | `poppler-utils` (`pdftoppm`) `qpdf` `util-linux` (`prlimit`) |
 | Optional forensic decoder and docs check | `python3` |
+
+The mock-only build compiles no Bluetooth stack: with the `ble` and
+`btleplug` features off, neither `bluer` nor `btleplug` is compiled in.
+`libdbus-1-dev` is still needed, because the bundled PAPPL requires
+D-Bus.
 
 Rust 1.98.1 is pinned in `rust-toolchain.toml`; 1.98 is the declared
 minimum. `Cargo.lock` is part of the project.
@@ -71,12 +79,25 @@ cd letratag-linux
 bash scripts/build-pappl.sh
 export PKG_CONFIG_PATH="$PWD/.research/pappl-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 
-cargo build --locked --release --workspace --all-features
+# Mock only: no Bluetooth backend, no Bluetooth development libraries.
+cargo build --locked --release -p letratag-printer --features pappl
 ```
 
-The Rust version, dependency resolution, PAPPL revision and patch are all
-pinned. Bit-identical binaries across different system libraries are not
-promised.
+The BLE backends are separate Cargo features, so add the one you need only
+if you intend to print on real hardware:
+
+```sh
+# BlueZ over D-Bus, the default real-hardware backend.
+cargo build --locked --release -p letratag-printer --features pappl,ble
+
+# The optional btleplug backend.
+cargo build --locked --release -p letratag-printer --features pappl,btleplug
+```
+
+A binary built without a BLE feature refuses that transport at startup and
+names the feature to build. The Rust version, dependency resolution, PAPPL
+revision and patch are all pinned. Bit-identical binaries across different
+system libraries are not promised.
 
 ### Arch Linux
 
@@ -102,12 +123,14 @@ not installed by the project, and it is never started automatically.
 
 ## Quick start: a safe first print
 
-The steps below use the mock transport. Nothing can reach a printer, and the
-mock records the bytes a real job would send.
+The steps below use the mock transport, so no Bluetooth transport is
+selected and nothing can reach a printer. The mock records the bytes a real
+job would send. Real hardware needs an explicit `--transport bluez` or
+`--transport btleplug`; see [Printing on real hardware](#printing-on-real-hardware).
 
 ```sh
-# 1. Build (see Installation above for the PAPPL prefix).
-cargo build --locked --release --workspace --all-features
+# 1. Build the mock-only binary (see Installation above for the PAPPL prefix).
+cargo build --locked --release -p letratag-printer --features pappl
 
 # 2. Start a private, mock-only IPP endpoint. No Bluetooth, no system CUPS.
 target/release/letratag-printer serve \
@@ -157,6 +180,11 @@ bash scripts/test-direct-ipp.sh
 bash scripts/test-ipp.sh
 ```
 
+Those two suites start their own mock servers and never select a BLE
+transport. Do not assume that an arbitrary command or script is
+hardware-safe: read its options, and treat anything that takes a
+`--transport` other than `mock` as a hardware operation.
+
 ## Printing on real hardware
 
 > **Warning.** The printer reports success even with the lid open, so a
@@ -168,15 +196,42 @@ bash scripts/test-ipp.sh
 
 Hardware is always an explicit, per-invocation choice. There is no implicit
 fallback from BlueZ to mock, and a failed hardware job is reported as
-failed, never silently retried:
+failed, never silently retried.
+
+The mock-only binary from the quick start has no BLE backend. Build the one
+you need first:
 
 ```sh
+# BlueZ over D-Bus, the default real-hardware backend.
+cargo build --locked --release -p letratag-printer --features pappl,ble
+
+# Or the optional btleplug backend.
+cargo build --locked --release -p letratag-printer --features pappl,btleplug
+```
+
+Then start the endpoint with the matching transport:
+
+```sh
+# Replace <device-address> with your printer's Bluetooth address.
 target/release/letratag-printer serve \
-  --transport bluez --address '90:E5:B1:49:DA:AE' \
+  --transport bluez --address '<device-address>' \
   --profile legacy --chunk-mode auto --diagnostics \
   --state "$PWD/test-output/hw-journal" --spool "$PWD/test-output/hw-spool" \
   --port 8631
 ```
+
+`<device-address>` is a placeholder and the command will not run as written.
+Find the printer's address with the standard BlueZ tools, for example:
+
+```sh
+bluetoothctl scan on      # power the printer on and wait for it to appear
+bluetoothctl devices      # lists the known addresses and device names
+bluetoothctl info <address>   # confirms which device an address belongs to
+```
+
+The address is the MAC-style identifier shown by `bluetoothctl devices`. The
+project's own `hardware-info` command needs the address as input, so it
+cannot be used to find one.
 
 * The process user needs access to the system BlueZ D-Bus API, the same
   permission `bluetoothctl` uses. No pairing is required and no persistent
@@ -199,8 +254,9 @@ New state and spool directories are created with private permissions;
 existing ones must be mode 0700. Do not point them at `/etc/cups` or an
 existing CUPS spool directory.
 
-Read-only hardware inspection is available separately and never sends a
-print job:
+Read-only hardware inspection is available separately. It connects to the
+device and reads its GATT characteristics, but never sends a print job, and
+it needs the same BLE-enabled build:
 
 ```sh
 target/release/letratag-printer hardware-info --address '<device-address>' --watch 15
