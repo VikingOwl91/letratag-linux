@@ -58,7 +58,7 @@ is an explicit per-invocation operator choice, never an implicit fallback.
 | Rust page-buffer unit-test API (not IPP) | 30..128 cross-tape pixels × at most 8000 feed rows, 8 bit |
 | Protocol writes | At most 255 body chunks plus header, never beyond usable value length |
 | IPP | 8 clients, at most 16 active jobs; hard admission ceiling of 32 active + completed jobs |
-| PDF subprocess | 512 MiB address space, 10 CPU seconds, 8 MiB per file, 64 FDs; 15 seconds wall time on the `qpdf --check` and `pdftoppm` steps, the `pdfinfo` and `qpdf --show-npages` steps are bounded by the CPU limit only |
+| PDF subprocess | 15 seconds wall time per helper, 10 CPU seconds, 512 MiB address space, 8 MiB per file, 64 FDs; helper output is collected with a 64 KiB bound |
 | Journal | At most 4096 directory entries; no automatic deletion of entries with uncertain outcomes |
 
 The PDF pipeline runs `prlimit` and the Poppler and qpdf tools by absolute
@@ -66,6 +66,17 @@ path, so nothing in the environment can substitute a different binary. A
 missing helper is reported as a setup problem, not as a document problem.
 The helpers inherit the server's environment and working directory, so
 they are only as trustworthy as the account that starts the server.
+
+Every helper runs under a wall-clock deadline that covers start-up, output
+collection and termination. A helper that overruns it is killed and reaped,
+the job fails with a timeout error, and no partial output is used. The
+output is read with a hard byte bound, so a helper that writes more than
+the bound cannot fill a pipe and block the job. `prlimit` execs the helper,
+so the terminated process is the helper itself; a helper that forked a
+child of its own would leave that descendant to the inherited CPU limit,
+and the job does not wait for it. A helper that cannot be terminated is
+reported as such, because the job then cannot claim that the process is
+gone.
 
 PAPPL/libcups parse HTTP and IPP before the document callback. The receive-time
 document ceiling is no guarantee against bugs in those native libraries. Deliberately endless

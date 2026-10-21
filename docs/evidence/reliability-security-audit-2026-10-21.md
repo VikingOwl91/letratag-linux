@@ -46,3 +46,27 @@ Invariants checked before and after the changes:
 No protocol, wire format, calibration, transport or public C ABI change was
 made. The historical `HELLO LINUX` and RAW diagnostic fixtures are
 unchanged.
+
+## Addendum: helper wall-clock deadlines, 2026-10-21
+
+Finding R4 above recorded that `pdfinfo` and `qpdf --show-npages` were
+bounded by the CPU limit only, because their output was collected with
+`wait_with_output()` and a capped read that had no deadline. That gap is
+closed.
+
+* All four helper invocations now run through one execution primitive with
+  a 15-second wall-clock deadline that covers start-up, output collection
+  and termination. The output is collected on a reader thread with a hard
+  64 KiB bound, so a helper that writes more than the bound cannot fill a
+  pipe and block the job.
+* A helper that overruns the deadline is killed and reaped, the job fails
+  with a distinct timeout error, and no partial output is used. A helper
+  that cannot be terminated is reported as such instead of claiming a clean
+  exit.
+* The deadline was verified with a controlled helper that outlives a short
+  injected deadline, with a helper that writes partial output and then
+  blocks, and with repeated runs that must not accumulate zombies. All run
+  without a printer.
+
+No protocol, wire format, calibration, transport, journal or BLE change was
+made, and no print job or hardware operation is involved.

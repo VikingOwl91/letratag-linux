@@ -3,11 +3,21 @@ use letratag_protocol::Raster;
 use std::io::{Cursor, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 use wait_timeout::ChildExt;
 
 pub const MAX_FILE: u64 = 8 * 1024 * 1024;
+
+/// Wall-clock deadline for one PDF helper process. It covers the complete
+/// operation: start-up, output collection and termination.
+const HELPER_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// Upper bound on the helper output the pipeline keeps. A helper that
+/// writes more is stopped at the bound instead of filling memory.
+const HELPER_OUTPUT_LIMIT: usize = 64 * 1024;
 
 /// Resource-limited command runner shared by the document pipeline.
 fn limited(program: &str, args: &[&str]) -> Command {
@@ -39,14 +49,94 @@ fn spawn_helper(command: &mut Command, program: &str) -> Result<std::process::Ch
     })
 }
 
-fn run_status(child: &mut std::process::Child) -> Result<(), std::io::Error> {
-    match child.wait_timeout(Duration::from_secs(15))? {
-        Some(status) if status.success() => Ok(()),
-        _ => {
+/// Output and exit status of a helper that ran to completion.
+#[derive(Debug)]
+struct HelperOutput {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+}
+
+/// Run a resource-limited helper under a wall-clock deadline.
+///
+/// The deadline covers the complete operation: start-up, output collection
+/// and termination. The output is read by a reader thread with a hard byte
+/// bound, so a helper that writes more than the bound sees a closed pipe
+/// instead of blocking, and a helper that never exits is terminated and
+/// reaped instead of hanging the job. The child is always reaped.
+///
+/// A helper that overruns the deadline yields a timeout error. The caller
+/// must not continue with partial output.
+fn run_helper(
+    command: &mut Command,
+    program: &str,
+    limit: usize,
+    deadline: Duration,
+) -> Result<HelperOutput, Error> {
+    let started = Instant::now();
+    let mut child = spawn_helper(command, program)?;
+    let stdout = child.stdout.take();
+    let (sender, receiver) = mpsc::channel();
+    // Read the output with a hard bound, concurrently with the wait, so a
+    // helper that writes more than the bound cannot fill the pipe and block
+    // the pipeline.
+    let reader = thread::spawn(move || {
+        let mut buffer = Vec::new();
+        if let Some(mut stdout) = stdout {
+            let _ = (&mut stdout).take(limit as u64).read_to_end(&mut buffer);
+        }
+        let _ = sender.send(buffer);
+    });
+    let remaining = || deadline.saturating_sub(started.elapsed());
+    let status = match child.wait_timeout(remaining()) {
+        Ok(Some(status)) => status,
+        Ok(None) => {
+            return Err(terminate(&mut child, program, deadline, reader));
+        }
+        Err(source) => {
             let _ = child.kill();
             let _ = child.wait();
-            Err(std::io::Error::other("command failed or timed out"))
+            return Err(Error::Io(source));
         }
+    };
+    let stdout = match receiver.recv_timeout(remaining()) {
+        Ok(buffer) => buffer,
+        Err(_) => {
+            // The helper exited, but its output pipe is still held open, most
+            // likely by a descendant. Do not use partial output.
+            return Err(terminate(&mut child, program, deadline, reader));
+        }
+    };
+    Ok(HelperOutput { status, stdout })
+}
+
+/// Terminate and reap a helper that did not finish in time.
+///
+/// The reader thread is not joined: a descendant that still holds the output
+/// pipe would block the job. It ends when the pipe closes.
+fn terminate(
+    child: &mut std::process::Child,
+    program: &str,
+    deadline: Duration,
+    reader: thread::JoinHandle<()>,
+) -> Error {
+    let mut cleanup = None;
+    if let Err(source) = child.kill() {
+        cleanup = Some(source);
+    }
+    if let Err(source) = child.wait() {
+        cleanup.get_or_insert(source);
+    }
+    drop(reader);
+    match cleanup {
+        Some(source) => Error::TimeoutCleanup {
+            program: program.to_string(),
+            seconds: deadline.as_secs(),
+            source,
+        },
+        None => Error::Timeout {
+            program: program.to_string(),
+            seconds: deadline.as_secs(),
+        },
     }
 }
 
@@ -75,6 +165,22 @@ pub enum Error {
     #[error("PDF helper {program} could not be started (needs /usr/bin/prlimit): {source}")]
     Helper {
         program: String,
+        source: std::io::Error,
+    },
+
+    /// A helper did not finish within its wall-clock deadline. It was
+    /// terminated and reaped; no partial output is used.
+    #[error("PDF helper {program} exceeded its {seconds} second time limit")]
+    Timeout { program: String, seconds: u64 },
+
+    /// A helper overran its deadline and could not be terminated or reaped.
+    /// The helper may still be running.
+    #[error(
+        "PDF helper {program} exceeded its {seconds} second time limit and could not be terminated: {source}"
+    )]
+    TimeoutCleanup {
+        program: String,
+        seconds: u64,
         source: std::io::Error,
     },
 }
@@ -111,12 +217,16 @@ struct PageGeometry {
 
 fn read_page_geometry(input: &Path) -> Result<PageGeometry, Error> {
     let mut child = limited("/usr/bin/pdfinfo", &["-f", "1", "-l", "1"]);
-    let child = spawn_helper(child.arg(input).stdout(Stdio::piped()), "/usr/bin/pdfinfo")?;
-    let output = child.wait_with_output().map_err(|_| Error::Conversion)?;
-    if !output.status.success() {
+    let run = run_helper(
+        child.arg(input).stdout(Stdio::piped()),
+        "/usr/bin/pdfinfo",
+        HELPER_OUTPUT_LIMIT,
+        HELPER_TIMEOUT,
+    )?;
+    if !run.status.success() {
         return Err(Error::Conversion);
     }
-    let text = String::from_utf8_lossy(&output.stdout);
+    let text = String::from_utf8_lossy(&run.stdout);
     let mut size: Option<(f64, f64)> = None;
     let mut rotation: Option<u32> = None;
     for line in text.lines() {
@@ -181,21 +291,18 @@ pub fn pdf_with_calibration(path: &Path, profile: &CalibrationProfile) -> Result
     std::fs::write(&input, data)?;
     // Reject damaged PDFs instead of relying on Poppler's best-effort recovery.
     let mut checker = limited("/usr/bin/qpdf", &["--check"]);
-    let mut checker = spawn_helper(checker.arg(&input), "/usr/bin/qpdf")?;
-    run_status(&mut checker).map_err(|_| Error::Input)?;
+    let run = run_helper(checker.arg(&input), "/usr/bin/qpdf", 0, HELPER_TIMEOUT)?;
+    if !run.status.success() {
+        return Err(Error::Input);
+    }
     let mut counter = limited("/usr/bin/qpdf", &["--show-npages"]);
-    let mut counter = spawn_helper(counter.arg(&input).stdout(Stdio::piped()), "/usr/bin/qpdf")?;
-    let mut pages = Vec::new();
-    counter
-        .stdout
-        .take()
-        .ok_or(Error::Input)?
-        .take(32)
-        .read_to_end(&mut pages)?;
-    // Reap the helper. Dropping a child without waiting leaves a zombie
-    // behind, and every PDF job would leak one.
-    let _ = counter.wait();
-    if pages.trim_ascii() != b"1" {
+    let run = run_helper(
+        counter.arg(&input).stdout(Stdio::piped()),
+        "/usr/bin/qpdf",
+        32,
+        HELPER_TIMEOUT,
+    )?;
+    if run.stdout.trim_ascii() != b"1" {
         return Err(Error::Geometry);
     }
     let page = read_page_geometry(&input)?;
@@ -255,8 +362,15 @@ pub fn pdf_with_calibration(path: &Path, profile: &CalibrationProfile) -> Result
             "-png",
         ],
     );
-    let mut child = spawn_helper(child.arg(&input).arg(&prefix), "/usr/bin/pdftoppm")?;
-    run_status(&mut child).map_err(|_| Error::Conversion)?;
+    let run = run_helper(
+        child.arg(&input).arg(&prefix),
+        "/usr/bin/pdftoppm",
+        0,
+        HELPER_TIMEOUT,
+    )?;
+    if !run.status.success() {
+        return Err(Error::Conversion);
+    }
     let mut pages = Vec::new();
     for entry in std::fs::read_dir(scratch.path())? {
         let p = entry?.path();
@@ -422,6 +536,152 @@ mod tests {
             Some(before),
             "the PDF helper processes must be reaped"
         );
+    }
+
+    /// A helper that stays alive well past the deadline.
+    fn sleeping_helper() -> Command {
+        let mut command = limited("/bin/sleep", &["30"]);
+        command.stdout(Stdio::piped());
+        command
+    }
+
+    #[test]
+    fn a_helper_that_finishes_in_time_returns_its_output() {
+        // The successful path collects the output and reports the exit
+        // status unchanged.
+        let mut command = Command::new("/bin/echo");
+        command.arg("hello");
+        command.stdout(Stdio::piped());
+        let run = run_helper(
+            &mut command,
+            "/bin/echo",
+            HELPER_OUTPUT_LIMIT,
+            HELPER_TIMEOUT,
+        )
+        .expect("the helper should finish");
+        assert!(run.status.success());
+        assert_eq!(run.stdout.trim_ascii(), b"hello");
+    }
+
+    #[test]
+    fn a_helper_that_overruns_the_deadline_is_terminated_and_reaped() {
+        let Some(before) = zombie_children() else {
+            return;
+        };
+        let started = std::time::Instant::now();
+        let mut command = sleeping_helper();
+        let error = run_helper(
+            &mut command,
+            "/bin/sleep",
+            HELPER_OUTPUT_LIMIT,
+            Duration::from_millis(200),
+        )
+        .expect_err("the helper should not finish in time");
+        assert!(
+            matches!(error, Error::Timeout { .. }),
+            "expected a timeout, got {error:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "the call must return on the deadline, not on the helper"
+        );
+        // The helper was killed and reaped: it is neither running nor a
+        // zombie, so this thread has no child left.
+        assert_eq!(
+            zombie_children(),
+            Some(before),
+            "the timed out helper must be terminated and reaped"
+        );
+    }
+
+    #[test]
+    fn a_helper_that_stalls_its_output_pipe_still_hits_the_deadline() {
+        // The helper writes a partial result and then blocks. The deadline
+        // still applies, and the partial output is not used.
+        let Some(before) = zombie_children() else {
+            return;
+        };
+        let started = std::time::Instant::now();
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "printf 123; exec sleep 30"]);
+        command.stdout(Stdio::piped());
+        let error = run_helper(
+            &mut command,
+            "/bin/sh",
+            HELPER_OUTPUT_LIMIT,
+            Duration::from_millis(200),
+        )
+        .expect_err("the helper should not finish in time");
+        assert!(
+            matches!(error, Error::Timeout { .. }),
+            "expected a timeout, got {error:?}"
+        );
+        assert!(started.elapsed() < Duration::from_secs(10));
+        assert_eq!(zombie_children(), Some(before));
+    }
+
+    #[test]
+    fn a_helper_that_fails_is_reported_without_partial_output() {
+        // A nonzero exit is reported as such, and the pipeline maps it to a
+        // document error rather than to a completed conversion.
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "exit 3"]);
+        command.stdout(Stdio::piped());
+        let run = run_helper(&mut command, "/bin/sh", HELPER_OUTPUT_LIMIT, HELPER_TIMEOUT)
+            .expect("the helper should run");
+        assert!(!run.status.success());
+        assert!(run.stdout.is_empty());
+    }
+
+    #[test]
+    fn repeated_helper_runs_do_not_accumulate_zombies() {
+        let Some(before) = zombie_children() else {
+            return;
+        };
+        for _ in 0..8 {
+            let mut command = Command::new("/bin/echo");
+            command.stdout(Stdio::piped());
+            let run = run_helper(
+                &mut command,
+                "/bin/echo",
+                HELPER_OUTPUT_LIMIT,
+                HELPER_TIMEOUT,
+            )
+            .expect("the helper should finish");
+            assert!(run.status.success());
+        }
+        assert_eq!(
+            zombie_children(),
+            Some(before),
+            "helper processes must be reaped, not left as zombies"
+        );
+    }
+
+    #[test]
+    fn a_document_error_never_produces_a_raster() {
+        // A document that fails validation yields no raster, so no print job
+        // can reach a transport with it.
+        let dir = tempdir();
+        let path = write_pdf(
+            dir.path(),
+            "label.pdf",
+            141.732283,
+            34.015748,
+            0,
+            "4.5 16.008 113.4 1.6 re f",
+        );
+        // A page whose sides are neither the tape width nor a valid label
+        // length is a geometry error.
+        let wrong = write_pdf(
+            dir.path(),
+            "wrong-width.pdf",
+            141.732283,
+            100.0,
+            0,
+            "4.5 16.008 113.4 1.6 re f",
+        );
+        assert!(matches!(pdf(&wrong), Err(Error::Geometry)));
+        assert!(pdf(&path).is_ok());
     }
 
     #[test]
