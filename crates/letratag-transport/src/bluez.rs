@@ -1,6 +1,6 @@
 use super::*;
 use bluer::{
-    Address, Device, Session, Uuid,
+    Adapter, AdapterEvent, Address, Device, DiscoveryFilter, DiscoveryTransport, Session, Uuid,
     gatt::{
         CharacteristicWriter, WriteOp,
         remote::{Characteristic, CharacteristicWriteRequest},
@@ -8,6 +8,13 @@ use bluer::{
 };
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
+
+/// Bounded LE discovery wait when the adapter does not know the configured
+/// device (2026-10-21 lifecycle finding). Short enough to fail fast when the
+/// printer is off: it auto-powers-off after roughly five minutes idle.
+const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(15);
+/// Bound on inspected discovery events, mirroring the discover() listing.
+const MAX_DISCOVERY_EVENTS: usize = 256;
 
 type Notifications = Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
 
@@ -392,6 +399,67 @@ async fn next_status(notifications: &mut Notifications) -> Result<Vec<u8>, Error
     Ok(value)
 }
 
+/// Resolves the configured device on the adapter without connecting.
+///
+/// The BlueZ device object is not guaranteed to exist before discovery
+/// (2026-10-21 lifecycle finding): an unpaired device that this BlueZ has
+/// never seen, or has since removed, has no Device1 object and
+/// Device1.Connect fails immediately. When the adapter does not know the
+/// address, run bounded LE discovery and match the exact configured
+/// address; names are discovery hints, never identity. Discovery never
+/// pairs, bonds or trusts the device, and dropping the event stream stops
+/// the session (bluer single-session token).
+pub async fn resolve_device(adapter: &Adapter, address: Address) -> Result<Device, Error> {
+    if adapter
+        .device_addresses()
+        .await
+        .map_err(|_| Error::Connect)?
+        .contains(&address)
+    {
+        return adapter.device(address).map_err(|_| Error::Connect);
+    }
+    // Best effort: an LE-only filter avoids BR/EDR inquiry noise. Another
+    // client's active session may merge or reject the filter; matching by
+    // exact address stays correct either way.
+    let _ = adapter
+        .set_discovery_filter(DiscoveryFilter {
+            transport: DiscoveryTransport::Le,
+            ..Default::default()
+        })
+        .await;
+    let mut events = adapter
+        .discover_devices()
+        .await
+        .map_err(|_| Error::Discovery)?;
+    await_discovered(&mut events, address).await?;
+    adapter.device(address).map_err(|_| Error::Connect)
+}
+
+/// Waits until the exact target address appears in a discovery event
+/// stream. Bounded by DISCOVERY_TIMEOUT and MAX_DISCOVERY_EVENTS; only
+/// DeviceAdded events match. The stream may first replay already-known
+/// devices, so a device that appeared between the known-check and the
+/// discovery start still resolves immediately.
+async fn await_discovered<S>(events: &mut S, target: Address) -> Result<(), Error>
+where
+    S: Stream<Item = AdapterEvent> + Unpin,
+{
+    let scan = async {
+        for _ in 0..MAX_DISCOVERY_EVENTS {
+            match events.next().await {
+                Some(AdapterEvent::DeviceAdded(address)) if address == target => return Ok(()),
+                Some(_) => continue,
+                None => break,
+            }
+        }
+        Err(Error::DeviceNotFound)
+    };
+    match tokio::time::timeout(DISCOVERY_TIMEOUT, scan).await {
+        Ok(result) => result,
+        Err(_) => Err(Error::DeviceNotFound),
+    }
+}
+
 fn is_service(uuid: &Uuid) -> bool {
     uuid.as_u128() >> 96 == 0xbe3d_d650
 }
@@ -682,5 +750,63 @@ mod tests {
             );
             assert_eq!(start.elapsed(), duration);
         }
+    }
+
+    fn addr(text: &str) -> Address {
+        text.parse().unwrap()
+    }
+
+    #[test]
+    fn device_not_found_is_actionable_and_distinct() {
+        // A connection-establishment failure: the engine maps it to
+        // SafeTransport (nothing was sent), never to an uncertain outcome.
+        assert!(Error::DeviceNotFound.to_string().contains("powered on"));
+        assert_ne!(Error::DeviceNotFound, Error::Connect);
+        assert_ne!(Error::DeviceNotFound, Error::Discovery);
+    }
+
+    #[tokio::test]
+    async fn discovery_wait_matches_only_the_exact_address() {
+        let target = addr("90:E5:B1:49:DA:AE");
+        let events = vec![
+            AdapterEvent::DeviceAdded(addr("10:D9:A2:4E:6C:3F")),
+            AdapterEvent::DeviceRemoved(target),
+            AdapterEvent::DeviceAdded(target),
+        ];
+        let mut stream = stream::iter(events);
+        assert_eq!(await_discovered(&mut stream, target).await, Ok(()));
+    }
+
+    #[tokio::test]
+    async fn discovery_wait_ends_when_the_stream_ends_without_the_target() {
+        let target = addr("90:E5:B1:49:DA:AE");
+        let mut stream = stream::iter([AdapterEvent::DeviceAdded(addr("10:D9:A2:4E:6C:3F"))]);
+        assert_eq!(
+            await_discovered(&mut stream, target).await,
+            Err(Error::DeviceNotFound)
+        );
+    }
+
+    #[tokio::test]
+    async fn discovery_wait_stops_after_the_event_cap() {
+        let target = addr("90:E5:B1:49:DA:AE");
+        let noise = || AdapterEvent::DeviceAdded(addr("10:D9:A2:4E:6C:3F"));
+        let mut stream = stream::iter(std::iter::repeat_with(noise).take(MAX_DISCOVERY_EVENTS));
+        assert_eq!(
+            await_discovered(&mut stream, target).await,
+            Err(Error::DeviceNotFound)
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn discovery_wait_is_bounded_by_its_timeout() {
+        let target = addr("90:E5:B1:49:DA:AE");
+        let mut stream = stream::pending();
+        let start = tokio::time::Instant::now();
+        assert_eq!(
+            await_discovered(&mut stream, target).await,
+            Err(Error::DeviceNotFound)
+        );
+        assert_eq!(start.elapsed(), DISCOVERY_TIMEOUT);
     }
 }

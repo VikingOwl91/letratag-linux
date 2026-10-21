@@ -7,7 +7,7 @@ use thiserror::Error;
 #[cfg(feature = "ble")]
 mod bluez;
 #[cfg(feature = "ble")]
-pub use bluez::{BluezTransport, DiscoveredDevice};
+pub use bluez::{BluezTransport, DiscoveredDevice, resolve_device};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 #[cfg(feature = "ble")]
@@ -170,6 +170,8 @@ pub enum Error {
     Disconnect,
     #[error("discovery failed")]
     Discovery,
+    #[error("configured device not found during bounded discovery; is it powered on?")]
+    DeviceNotFound,
     #[error("configured write size {0} is outside the protocol bounds 9..=512")]
     InvalidWriteSize(usize),
     #[error("configured write size {configured} exceeds the negotiated GATT value limit {limit}")]
