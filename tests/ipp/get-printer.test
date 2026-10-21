@@ -5,7 +5,7 @@
   ATTR charset attributes-charset utf-8
   ATTR language attributes-natural-language en
   ATTR uri printer-uri $uri
-  ATTR keyword requested-attributes printer-name,document-format-supported,media-col-database,page-ranges-supported,orientation-requested-supported,print-scaling-supported,printer-is-accepting-jobs
+  ATTR keyword requested-attributes printer-name,document-format-supported,media-col-database,page-ranges-supported,orientation-requested-supported,print-scaling-supported,printer-is-accepting-jobs,printer-resolution-supported,printer-resolution-default,letratag-logical-resolution
   STATUS successful-ok
   EXPECT printer-name OF-TYPE name
   EXPECT document-format-supported COUNT 1 WITH-VALUE application/pdf
@@ -14,4 +14,7 @@
   EXPECT orientation-requested-supported COUNT 1 WITH-VALUE 7
   EXPECT print-scaling-supported COUNT 1 WITH-VALUE none
   EXPECT printer-is-accepting-jobs WITH-VALUE true
+  EXPECT printer-resolution-supported COUNT 1 WITH-VALUE 315x160dpi
+  EXPECT printer-resolution-default COUNT 1 WITH-VALUE 315x160dpi
+  EXPECT letratag-logical-resolution COUNT 1 WITH-VALUE 200dpi
 }

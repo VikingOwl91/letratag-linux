@@ -91,11 +91,17 @@ static bool driver(pappl_system_t *sys, const char *name, const char *uri,
   d->kind = PAPPL_KIND_LABEL | PAPPL_KIND_ROLL;
   d->ppm = 1; /* Scheduling hint, not a measured device speed. */
   d->num_resolution = 1;
-  /* Advertise the logical layout resolution: the coordinate system clients
-     lay out in. The physical raster geometry (empirical calibration) is
-     exposed separately via a custom attribute below; the two are never
+  /* The standard printer-resolution attribute means the resolution at
+     which the printer prints (RFC 8011): the physical raster geometry of
+     the calibration profile (feed x cross-tape DPI, empirical). The
+     logical 200-DPI layout coordinate system is an input convention, not
+     the printer's resolution; it is exposed separately via the custom
+     letragat-logical-resolution attribute below. The two are never
      conflated. */
-  d->x_resolution[0] = d->y_resolution[0] = d->x_default = d->y_default = (int)b->config->logical_dpi;
+  d->x_resolution[0] = (int)(b->config->feed_dpi + 0.5);
+  d->y_resolution[0] = (int)(b->config->cross_dpi + 0.5);
+  d->x_default = d->x_resolution[0];
+  d->y_default = d->y_resolution[0];
   d->raster_types = PAPPL_PWG_RASTER_TYPE_SGRAY_8 | PAPPL_PWG_RASTER_TYPE_BLACK_8;
   d->force_raster_type = PAPPL_PWG_RASTER_TYPE_SGRAY_8;
   d->color_supported = d->color_default = PAPPL_COLOR_MODE_MONOCHROME;
@@ -120,10 +126,12 @@ static bool driver(pappl_system_t *sys, const char *name, const char *uri,
   ippAddBoolean(*attrs,IPP_TAG_PRINTER,"page-ranges-supported",false);
   ippAddInteger(*attrs,IPP_TAG_PRINTER,IPP_TAG_ENUM,"orientation-requested-supported",IPP_ORIENT_NONE);
   ippAddString(*attrs,IPP_TAG_PRINTER,IPP_TAG_KEYWORD,"print-scaling-supported",NULL,"none");
-  /* Empirical physical raster geometry (feed x cross-tape DPI), exposed so
-     clients can observe the calibration. Estimates, not specifications. */
-  ippAddResolution(*attrs,IPP_TAG_PRINTER,"letratag-physical-resolution",IPP_RES_PER_INCH,
-                   (int)(b->config->feed_dpi + 0.5),(int)(b->config->cross_dpi + 0.5));
+  /* The logical layout resolution (200 x 200 DPI by default): the document
+     coordinate system the rendering pipeline maps to the physical raster
+     geometry. Not the printer's native resolution; see the standard
+     printer-resolution attribute above. */
+  ippAddResolution(*attrs,IPP_TAG_PRINTER,"letratag-logical-resolution",IPP_RES_PER_INCH,
+                   (int)b->config->logical_dpi,(int)b->config->logical_dpi);
   return true;
 }
 
