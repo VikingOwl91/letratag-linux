@@ -1,0 +1,76 @@
+# Arch Linux packaging for letratag-linux.
+#
+# Prepared for operator-controlled publication; not an AUR submission. The
+# source archive is the release asset of the v0.3.0 GitHub release, so the
+# package can only be built after that release exists. See
+# packaging/README.md for the exact order of operations.
+#
+# The checksum below is the SHA256 of the archive produced by
+# scripts/make-release-archive.sh 0.3.0 from the release commit. The
+# archive excludes packaging/arch/, so this checksum does not change when
+# this file changes.
+pkgname=letratag-linux
+pkgver=0.3.0
+pkgrel=1
+pkgdesc='Native driver for the DYMO LetraTag 200B with a local Direct IPP endpoint'
+arch=('x86_64')
+url='https://github.com/VikingOwl91/letratag-linux'
+license=('MIT' 'Apache-2.0')
+# PAPPL 1.4.9 with the project document-policy patch is built from source
+# in prepare() and linked statically, so there is no runtime PAPPL
+# dependency. The libraries below are the direct runtime needs of the
+# installed binary and of the helper programs it runs.
+depends=('libcups' 'avahi' 'openssl' 'libjpeg-turbo' 'libpng' 'dbus'
+         'gcc-libs' 'poppler' 'qpdf' 'util-linux')
+makedepends=('rust' 'cargo' 'pkgconf' 'clang' 'libcups' 'avahi' 'openssl'
+             'libjpeg-turbo' 'libpng' 'dbus')
+source=(
+  "$pkgname-$pkgver.tar"
+  "https://github.com/michaelrsweet/pappl/releases/download/v1.4.9/pappl-1.4.9.tar.gz"
+)
+sha256sums=(
+  '28c6b36431b27edf8d84ca417aed155e89b40cc9f0cb1720c3603b293fad705d'
+  '50fec863a28a3c39af639de29d58bf8cefdafa258b66e3c0dfbe2097801dc9db'
+)
+
+prepare() {
+  # Build the patched PAPPL into a private prefix. Unpatched PAPPL is
+  # deliberately rejected at compile time: the adapter needs the patched
+  # document-policy API.
+  cd "$srcdir/pappl-1.4.9"
+  patch -Np1 -i "$srcdir/$pkgname-$pkgver/patches/pappl-1.4.9-document-policy.patch"
+  ./configure --prefix="$srcdir/pappl-prefix" \
+    --disable-shared --disable-libusb --disable-libpam
+  make -j"$(nproc)"
+  make install
+
+  cd "$srcdir/$pkgname-$pkgver"
+  cargo fetch --locked
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export PKG_CONFIG_PATH="$srcdir/pappl-prefix/lib/pkgconfig"
+  export LETRATAG_PAPPL_PREFIX="$srcdir/pappl-prefix"
+  export CARGO_NET_OFFLINE=true
+  cargo build --frozen --release --workspace --all-features
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export PKG_CONFIG_PATH="$srcdir/pappl-prefix/lib/pkgconfig"
+  export LETRATAG_PAPPL_PREFIX="$srcdir/pappl-prefix"
+  export CARGO_NET_OFFLINE=true
+  cargo test --frozen --workspace --all-features
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/letratag-printer "$pkgdir/usr/bin/letratag-printer"
+  install -Dm644 packaging/systemd/letratag-linux.service \
+    "$pkgdir/usr/lib/systemd/system/letratag-linux.service"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 docs/legal/PAPPL-LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/PAPPL-LICENSE.txt"
+  install -Dm644 docs/legal/PAPPL-NOTICE.txt "$pkgdir/usr/share/licenses/$pkgname/PAPPL-NOTICE.txt"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
