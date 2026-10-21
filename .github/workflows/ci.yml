@@ -36,6 +36,22 @@ jobs:
           cargo test --locked --workspace --all-features
           cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
           cargo build --locked --release --workspace --all-features
+      - name: Mock-only build without a Bluetooth backend
+        run: |
+          export PKG_CONFIG_PATH="$PWD/.research/pappl-prefix/lib/pkgconfig"
+          cargo build --locked --release -p letratag-printer --features pappl
+          # The mock-only build must not pull in bluer or btleplug: a
+          # mock-only user should not need the Bluetooth stack at all.
+          if cargo tree --locked -p letratag-printer --features pappl -e normal \
+            | grep -qE '(^| )(bluer|btleplug) v'; then
+            echo "the mock-only build must not depend on a BLE backend" >&2
+            exit 1
+          fi
+      - name: Minimum supported Rust version
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          export PKG_CONFIG_PATH="$PWD/.research/pappl-prefix/lib/pkgconfig"
+          cargo +1.98.0 check --locked --workspace --all-features
       - name: Recommended Direct IPP clients and media, mock only
         run: bash scripts/test-direct-ipp.sh
       - name: PDF-only loopback receive policy, never physical BLE

@@ -58,8 +58,14 @@ is an explicit per-invocation operator choice, never an implicit fallback.
 | Rust page-buffer unit-test API (not IPP) | 30..128 cross-tape pixels × at most 8000 feed rows, 8 bit |
 | Protocol writes | At most 255 body chunks plus header, never beyond usable value length |
 | IPP | 8 clients, at most 16 active jobs; hard admission ceiling of 32 active + completed jobs |
-| PDF subprocess | 512 MiB address space, 10 CPU seconds, 15 seconds wall time, 8 MiB per file, 64 FDs |
+| PDF subprocess | 512 MiB address space, 10 CPU seconds, 8 MiB per file, 64 FDs; 15 seconds wall time on the `qpdf --check` and `pdftoppm` steps, the `pdfinfo` and `qpdf --show-npages` steps are bounded by the CPU limit only |
 | Journal | At most 4096 directory entries; no automatic deletion of entries with uncertain outcomes |
+
+The PDF pipeline runs `prlimit` and the Poppler and qpdf tools by absolute
+path, so nothing in the environment can substitute a different binary. A
+missing helper is reported as a setup problem, not as a document problem.
+The helpers inherit the server's environment and working directory, so
+they are only as trustworthy as the account that starts the server.
 
 PAPPL/libcups parse HTTP and IPP before the document callback. The receive-time
 document ceiling is no guarantee against bugs in those native libraries. Deliberately endless

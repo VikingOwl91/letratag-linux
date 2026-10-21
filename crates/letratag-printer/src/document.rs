@@ -28,6 +28,17 @@ fn limited(program: &str, args: &[&str]) -> Command {
     command
 }
 
+/// Start a resource-limited helper. The runner and the helper program are
+/// both absolute paths, so nothing in the environment can substitute a
+/// different binary. A missing or unusable binary is reported as such
+/// instead of as a document failure.
+fn spawn_helper(command: &mut Command, program: &str) -> Result<std::process::Child, Error> {
+    command.spawn().map_err(|source| Error::Helper {
+        program: program.to_string(),
+        source,
+    })
+}
+
 fn run_status(child: &mut std::process::Child) -> Result<(), std::io::Error> {
     match child.wait_timeout(Duration::from_secs(15))? {
         Some(status) if status.success() => Ok(()),
@@ -57,6 +68,15 @@ pub enum Error {
 
     #[error("document I/O failed")]
     Io(#[from] std::io::Error),
+
+    /// A required helper binary could not be started. This is a system
+    /// setup problem, not a document problem: the PDF pipeline needs
+    /// /usr/bin/prlimit and the Poppler and qpdf tools.
+    #[error("PDF helper {program} could not be started (needs /usr/bin/prlimit): {source}")]
+    Helper {
+        program: String,
+        source: std::io::Error,
+    },
 }
 
 pub fn bounded_read(path: &Path) -> Result<Vec<u8>, Error> {
@@ -91,12 +111,8 @@ struct PageGeometry {
 
 fn read_page_geometry(input: &Path) -> Result<PageGeometry, Error> {
     let mut child = limited("/usr/bin/pdfinfo", &["-f", "1", "-l", "1"]);
-    let output = child
-        .arg(input)
-        .stdout(Stdio::piped())
-        .spawn()?
-        .wait_with_output()
-        .map_err(|_| Error::Conversion)?;
+    let child = spawn_helper(child.arg(input).stdout(Stdio::piped()), "/usr/bin/pdfinfo")?;
+    let output = child.wait_with_output().map_err(|_| Error::Conversion)?;
     if !output.status.success() {
         return Err(Error::Conversion);
     }
@@ -165,10 +181,10 @@ pub fn pdf_with_calibration(path: &Path, profile: &CalibrationProfile) -> Result
     std::fs::write(&input, data)?;
     // Reject damaged PDFs instead of relying on Poppler's best-effort recovery.
     let mut checker = limited("/usr/bin/qpdf", &["--check"]);
-    let mut checker = checker.arg(&input).spawn()?;
+    let mut checker = spawn_helper(checker.arg(&input), "/usr/bin/qpdf")?;
     run_status(&mut checker).map_err(|_| Error::Input)?;
     let mut counter = limited("/usr/bin/qpdf", &["--show-npages"]);
-    let mut counter = counter.arg(&input).stdout(Stdio::piped()).spawn()?;
+    let mut counter = spawn_helper(counter.arg(&input).stdout(Stdio::piped()), "/usr/bin/qpdf")?;
     let mut pages = Vec::new();
     counter
         .stdout
@@ -176,6 +192,9 @@ pub fn pdf_with_calibration(path: &Path, profile: &CalibrationProfile) -> Result
         .ok_or(Error::Input)?
         .take(32)
         .read_to_end(&mut pages)?;
+    // Reap the helper. Dropping a child without waiting leaves a zombie
+    // behind, and every PDF job would leak one.
+    let _ = counter.wait();
     if pages.trim_ascii() != b"1" {
         return Err(Error::Geometry);
     }
@@ -236,7 +255,7 @@ pub fn pdf_with_calibration(path: &Path, profile: &CalibrationProfile) -> Result
             "-png",
         ],
     );
-    let mut child = child.arg(&input).arg(&prefix).spawn()?;
+    let mut child = spawn_helper(child.arg(&input).arg(&prefix), "/usr/bin/pdftoppm")?;
     run_status(&mut child).map_err(|_| Error::Conversion)?;
     let mut pages = Vec::new();
     for entry in std::fs::read_dir(scratch.path())? {
@@ -352,6 +371,70 @@ mod tests {
             .permissions(std::fs::Permissions::from_mode(0o700))
             .tempdir()
             .unwrap()
+    }
+
+    /// Count the zombie children of the calling thread (Linux only).
+    ///
+    /// Only this thread's own children are counted, so a helper that another
+    /// test started in parallel cannot influence the result. Returns `None`
+    /// when /proc is unavailable.
+    fn zombie_children() -> Option<usize> {
+        let tid = unsafe { libc::gettid() };
+        let listing = std::fs::read_to_string(format!("/proc/self/task/{tid}/children")).ok()?;
+        let mut count = 0;
+        for pid in listing.split_whitespace() {
+            let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+                continue;
+            };
+            // The state field follows the parenthesized comm field, which may
+            // itself contain spaces or parentheses.
+            let state = stat
+                .rsplit_once(") ")
+                .and_then(|(_, rest)| rest.split_whitespace().next());
+            if state == Some("Z") {
+                count += 1;
+            }
+        }
+        Some(count)
+    }
+
+    #[test]
+    fn pdf_conversion_leaves_no_zombie_children() {
+        // Every PDF job spawns helper processes. A helper that is never
+        // reaped stays a zombie for the lifetime of the server, so a long
+        // running service would accumulate one zombie per printed label.
+        let Some(before) = zombie_children() else {
+            // No /proc: nothing to measure.
+            return;
+        };
+        let dir = tempdir();
+        let path = write_pdf(
+            dir.path(),
+            "label.pdf",
+            141.732283,
+            34.015748,
+            0,
+            "4.5 16.008 113.4 1.6 re f",
+        );
+        pdf(&path).unwrap();
+        assert_eq!(
+            zombie_children(),
+            Some(before),
+            "the PDF helper processes must be reaped"
+        );
+    }
+
+    #[test]
+    fn a_missing_helper_is_reported_as_a_helper_problem() {
+        // A missing system helper is a setup problem, not a document
+        // problem, and must not be reported as one.
+        let mut command = Command::new("/nonexistent/letratag-helper");
+        match spawn_helper(&mut command, "/nonexistent/letratag-helper") {
+            Err(Error::Helper { program, .. }) => {
+                assert_eq!(program, "/nonexistent/letratag-helper")
+            }
+            other => panic!("expected a helper error, got {other:?}"),
+        }
     }
 
     #[test]

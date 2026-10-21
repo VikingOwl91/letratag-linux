@@ -233,9 +233,13 @@ impl Engine {
             .create_new(true)
             .mode(0o600)
             .open(self.directory.join(format!("{id}.state")))?;
+        // The journal entry exists from here on, so the queue is blocked
+        // before anything else can fail: a later error must not leave this
+        // process running jobs while the journal already holds an entry for
+        // this one. The journal decides the same thing after a restart.
+        self.blocked = true;
         set_state(&mut state, b"inflight\n")?;
         File::open(&self.directory)?.sync_all()?;
-        self.blocked = true;
         // Any error from this point, including the first write, may have printed.
         let linger = self.linger;
         let outcome = tokio::time::timeout(Duration::from_secs(90), async {

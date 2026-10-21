@@ -19,23 +19,18 @@ welcome, but they are outside the validated scope of this project.
 is indexed, cached and shared; once a detail is public, it cannot be
 withdrawn.
 
-GitHub's private vulnerability reporting is **not enabled on this
-repository yet**. It is a single setting, and any repository maintainer can
-turn it on:
+This repository has **GitHub private vulnerability reporting enabled**. Use
+the report form on the repository's Security tab:
 
-1. Open **Settings → Security and analysis → Security advisories**.
-2. Under **Report a vulnerability**, choose **Enable private vulnerability
-   reporting**.
+<https://github.com/VikingOwl91/letratag-linux/security/advisories/new>
 
-Once that is done, the **Security** tab of the repository shows a
-**Report a vulnerability** link, and reports arrive as a private GitHub
-advisory that only the reporter and the maintainers can see.
+It requires a GitHub account, and it opens a private advisory that only the
+reporter and the maintainers can see. The same entry point is the
+**Report a vulnerability** button on the repository's **Security** tab.
 
-Until it is enabled, please start a private conversation through the
-maintainer's GitHub profile and ask for a private channel before sharing
-any technical detail. If that is not possible, open an issue that
-contains **no** exploit details, only a request to establish a private
-channel, and wait for a reply.
+If you cannot use the form, open a public issue that contains **no** exploit
+detail, only a request to establish a private channel, and wait for a reply
+before sharing anything technical.
 
 Please include:
 
