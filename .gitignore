@@ -9,6 +9,10 @@
 # Test output (mock journals, packet captures, hardware diag logs)
 /test-output/
 
+# Python bytecode cache
+__pycache__/
+*.pyc
+
 # IDE files
 .idea/
 .vscode/

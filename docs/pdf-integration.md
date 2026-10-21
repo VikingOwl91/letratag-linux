@@ -14,7 +14,8 @@ The PAPPL policy patch does not alter or split valid multipage PDFs; the
 one-page product limit is applied later in Rust before any submission.
 
 Inspected read-only:
-`/home/cnachtigall/git/projects/homeops-letratag-200b/`.
+the separate `homeops-letratag-200b` reference project (local checkout
+`~/git/projects/homeops-letratag-200b/`).
 There is no runtime dependency and no modification there.
 
 Observed on 2026-10-18:
