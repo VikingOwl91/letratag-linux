@@ -80,6 +80,8 @@ while pos < len(data):
     out += data[pos + 512:pos + 512 + ((size + 511) // 512) * 512]
     pos += 512 + ((size + 511) // 512) * 512
     if not name:
+        # End of archive: keep the trailing zero blocks verbatim.
+        out += data[pos:]
         break
 
 open(path, "wb").write(bytes(out))
