@@ -51,19 +51,38 @@ fi
 rm -f "$archive"
 git archive --format=tar --prefix="$name/" "$commit" -- . ':(exclude)packaging/arch' > "$archive"
 
-# `git archive` writes a pax global header that carries the commit id, which
-# would make the archive bytes depend on the commit rather than on its
-# content. Drop that header so the archive describes the file tree only.
+# `git archive` writes a pax global header that carries the commit id, and
+# stamps every entry with the commit time. Both would make the archive bytes
+# depend on the commit rather than on its content, which would break the
+# packaging checksum that pins this archive. Drop the header and normalize
+# the timestamps, so the archive describes the file tree only.
 python3 - "$archive" <<'PY'
 import sys
 
 path = sys.argv[1]
-data = open(path, "rb").read()
+data = bytearray(open(path, "rb").read())
 
-if data[0:100].rstrip(b"\0") == b"pax_global_header" and data[156:157] == b"g":
-    size = int(data[124:136].rstrip(b"\0 ").decode() or "0", 8)
-    offset = 512 + ((size + 511) // 512) * 512
-    open(path, "wb").write(data[offset:])
+pos = 0
+out = bytearray()
+while pos < len(data):
+    header = data[pos:pos + 512]
+    if len(header) < 512:
+        break
+    name = header[0:100].rstrip(b"\0")
+    typeflag = header[156:157]
+    size = int(header[124:136].rstrip(b"\0 ").decode() or "0", 8)
+    if name == b"pax_global_header" and typeflag == b"g":
+        pos += 512 + ((size + 511) // 512) * 512
+        continue
+    if name:
+        header[136:148] = b"00000000000\x00"
+    out += header
+    out += data[pos + 512:pos + 512 + ((size + 511) // 512) * 512]
+    pos += 512 + ((size + 511) // 512) * 512
+    if not name:
+        break
+
+open(path, "wb").write(bytes(out))
 PY
 
 echo "commit:  $commit"
