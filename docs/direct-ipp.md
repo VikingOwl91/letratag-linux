@@ -6,10 +6,12 @@ and selected mock or BlueZ transport process the job. No system CUPS queue,
 PPD, or CUPS scheduler filter is involved in this route.
 
 This recommendation does not change the safe transport default: `serve`
-still defaults to **mock**. Physical printing requires explicit BlueZ
-selection and operator approval. Direct IPP avoids the demonstrated
-[Experimental CUPS fitting issue](cups-experimental.md); it does not fix
-or bypass the unresolved historical 160-versus-316-dpi feed discrepancy.
+still defaults to **mock**. Physical printing requires explicit BLE backend
+selection (BlueZ default, btleplug alternative) and operator approval.
+Direct IPP avoids the demonstrated
+[Experimental CUPS fitting issue](cups-experimental.md); the rendering
+pipeline models the printer's empirical physical geometry via the
+[calibration profile](calibration.md).
 
 ## Build and local setup
 
@@ -166,15 +168,26 @@ they consume physical tape.
   PNG is CLI-preview/mock input, not an IPP document format. PWG/URF are rejected.
 - One 12-mm page, at most 200 mm feed length, in landscape or corresponding
   portrait orientation. Leave orientation-requested unset and use scaling none.
-- The unchanged **160-dpi software layout** extracts a centered 30-row
-  printable band into a 32-row wire frame. Nonwhite content outside that
-  band is rejected, not cropped or squeezed into it. At this model's scale,
-  the band is about 4.76 mm high; the 12-mm tape width is not the ink height.
+  Page rotation 90/270 is rejected with an actionable error (export the page
+  pre-rotated).
+- Documents are laid out in a **logical 200 x 200 DPI** coordinate system
+  (the resolution advertised to IPP clients). The pipeline renders directly
+  at the physical raster geometry of the [calibration profile](calibration.md)
+  (~315 DPI feed x ~160 DPI cross-tape by default; empirical estimates, not
+  specifications), exposed to clients as the `letratag-physical-resolution`
+  printer attribute. A 50 x 12 mm page renders to 620 feed columns x 76
+  cross-tape pixels at the default profile. Override with `--calibration
+  feed=<dpi>,cross=<dpi>`.
+- The centered 30-row printable band is ~4.76 mm high (at 160 DPI
+  cross-tape), below the 12 mm tape width. Nonwhite content outside that
+  band is rejected, not cropped or squeezed into it.
+- The media check compares the native raster width against the media length
+  through the physical feed pitch; page fitting cannot override requested
+  physical dimensions, and inconsistent media aborts with an actionable error.
 - Current software limits are not hardware capability or dimensional-accuracy
-  guarantees. The historical approximately160 versus approximately316-dpi
-  apparent feed discrepancy remains unresolved. No anisotropic correction
-  or native-DPI change is introduced. See the
-  [authoritative forensic report](evidence/resolution-investigation-2026-10-21.md).
+  guarantees. The calibration profile is empirical and awaits hardware
+  validation (see [calibration.md](calibration.md)); the v0.3.0
+  dimensional-accuracy NO-GO stands until then.
 - Historical physical Direct IPP acceptance established a readable 50 x 12 mm
   source label through PAPPL/BlueZ, not measured physical accuracy. Mock
   controls establish the checked document/attribute/raster behavior only.

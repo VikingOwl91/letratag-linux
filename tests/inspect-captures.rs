@@ -50,8 +50,8 @@ fn inspect(path: &Path) {
         &[27, 115, 154, 2, 0, 0, 27, 35, 1, 27, 68, 129, 2]
     );
     let width = u32::from_le_bytes(body[13..17].try_into().unwrap()) as usize;
-    // 50 mm feed at the measured 160 dpi layout: 314.96 px, plus rounding.
-    assert!((314..=316).contains(&width));
+    // 50 mm feed at the empirical 315 DPI physical calibration: 620 columns.
+    assert_eq!(width, 620);
     assert_eq!(&body[17..21], &[32, 0, 0, 0]);
     assert_eq!(body.len(), width * 4 + 28);
     assert_eq!(&body[21 + width * 4..], &[27, 112, 48, 27, 65, 27, 81]);

@@ -1,10 +1,26 @@
 use std::path::Path;
 
+/// Expected rectangle bounds for a capture width. The fixture's PDF
+/// rectangle is x20..120/y15..19 pt, rendered at the physical calibration
+/// (feed 315 / cross 160 DPI) on a 12 mm-tall page. The 50 mm page renders
+/// 620x76 px with the rectangle at x87..524; the 63.5 mm page renders
+/// 788x76 px and the same pt rectangle lands at x88..524 (one pixel of
+/// antialiasing shift from the different page scale). Full-page rows
+/// 34..41 map into wire rows 12..19. Antialiasing can change the four
+/// corner pixels, but not the edges or interior.
+fn expected_bounds(width: usize) -> Option<(usize, usize, usize, usize)> {
+    match width {
+        620 => Some((87, 12, 524, 19)),
+        788 => Some((88, 12, 524, 19)),
+        _ => None,
+    }
+}
+
 fn artwork_matches(width: usize, points: &[(usize, usize)]) -> bool {
-    if !matches!(width, 315 | 400)
-        || points.is_empty()
-        || points.iter().any(|&(x, y)| x >= width || y >= 32)
-    {
+    let Some((x0, y0, x1, y1)) = expected_bounds(width) else {
+        return false;
+    };
+    if points.is_empty() || points.iter().any(|&(x, y)| x >= width || y >= 32) {
         return false;
     }
     let bounds = (
@@ -13,10 +29,7 @@ fn artwork_matches(width: usize, points: &[(usize, usize)]) -> bool {
         points.iter().map(|p| p.0).max().unwrap(),
         points.iter().map(|p| p.1).max().unwrap(),
     );
-    // The fixture's PDF rectangle is x20..120/y15..19 pt at 160 dpi.
-    // Its full-page rows33..41 map into wire rows11..19; antialiasing
-    // can change the four corner pixels, but not its edges or interior.
-    if bounds != (44, 11, 266, 19) {
+    if bounds != (x0, y0, x1, y1) {
         return false;
     }
     let mut mask = vec![false; width * 32];
@@ -25,10 +38,10 @@ fn artwork_matches(width: usize, points: &[(usize, usize)]) -> bool {
     }
     for y in 0..32 {
         for x in 0..width {
-            if matches!(x, 44 | 266) && matches!(y, 11 | 19) {
+            if (x == x0 || x == x1) && (y == y0 || y == y1) {
                 continue;
             }
-            let expected = (44..=266).contains(&x) && (11..=19).contains(&y);
+            let expected = (x0..=x1).contains(&x) && (y0..=y1).contains(&y);
             if mask[y * width + x] != expected {
                 return false;
             }
@@ -114,38 +127,42 @@ fn main() {
         }
         let (width, bytes) = raster(&path);
         match width {
-            315 => short.push(bytes),
-            400 => long.push(bytes),
+            620 => short.push(bytes),
+            788 => long.push(bytes),
             _ => panic!("unexpected width {width}"),
         }
     }
     assert_eq!(short.len(), 3);
     assert_eq!(long.len(), 1);
+    // The three 50 mm renders are byte-identical to each other.
     assert!(short.iter().all(|r| r == &short[0]));
-    assert_eq!(&long[0][..315 * 4], &short[0]);
-    assert!(long[0][315 * 4..].iter().all(|b| *b == 0));
-    println!("PASS: 4 direct-IPP mock captures, identical artwork and 85 additional blank columns");
+    // The 63.5 mm render carries the same artwork, proportionally scaled:
+    // the same physical rectangle (40 mm x ~1.27 mm ink extent) at its own
+    // oracle bounds, with the additional feed columns blank.
+    assert!(long[0][620 * 4..].iter().all(|b| *b == 0));
+    println!("PASS: 4 direct-IPP mock captures, proportional artwork and 168 additional blank columns");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn rectangle() -> Vec<(usize, usize)> {
-        (11..=19)
-            .flat_map(|y| (44..=266).map(move |x| (x, y)))
+    fn rectangle(width: usize) -> Vec<(usize, usize)> {
+        let (x0, y0, x1, y1) = expected_bounds(width).unwrap();
+        (y0..=y1)
+            .flat_map(|y| (x0..=x1).map(move |x| (x, y)))
             .collect()
     }
 
     #[test]
     fn accepts_the_independent_rectangle_oracle_at_both_lengths() {
-        assert!(artwork_matches(315, &rectangle()));
-        assert!(artwork_matches(400, &rectangle()));
+        assert!(artwork_matches(620, &rectangle(620)));
+        assert!(artwork_matches(788, &rectangle(788)));
     }
 
     #[test]
     fn rejects_common_shrink_shift_and_mirroring() {
-        let source = rectangle();
+        let source = rectangle(620);
         for damaged in [
             source
                 .iter()
@@ -153,20 +170,30 @@ mod tests {
                 .filter(|&(x, _)| x <= 200)
                 .collect::<Vec<_>>(),
             source.iter().map(|&(x, y)| (x + 1, y)).collect(),
-            source.iter().map(|&(x, y)| (314 - x, y)).collect(),
-            source.iter().map(|&(x, y)| (x, 31 - y)).collect(),
+            source.iter().map(|&(x, y)| (619 - x, y)).collect(),
+            // Mirror around a non-center axis (the rectangle is vertically
+            // symmetric, so a center flip would be an identity).
+            source.iter().map(|&(x, y)| (x, 24 - y)).collect(),
         ] {
-            assert!(!artwork_matches(315, &damaged));
+            assert!(!artwork_matches(620, &damaged));
         }
     }
 
     #[test]
     fn rejects_missing_interior_pixels_and_extra_ink() {
-        let mut hole = rectangle();
-        hole.retain(|&p| p != (155, 15));
-        assert!(!artwork_matches(315, &hole));
-        let mut extra = rectangle();
-        extra.push((280, 16));
-        assert!(!artwork_matches(315, &extra));
+        let mut hole = rectangle(620);
+        hole.retain(|&p| p != (300, 15));
+        assert!(!artwork_matches(620, &hole));
+        let mut extra = rectangle(620);
+        extra.push((600, 16));
+        assert!(!artwork_matches(620, &extra));
+    }
+
+    #[test]
+    fn rejects_the_other_lengths_bounds() {
+        // The 63.5 mm render's one-pixel-shifted rectangle must not match the
+        // 50 mm oracle bounds, and vice versa.
+        assert!(!artwork_matches(620, &rectangle(788)));
+        assert!(!artwork_matches(788, &rectangle(620)));
     }
 }

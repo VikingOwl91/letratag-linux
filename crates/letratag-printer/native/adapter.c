@@ -91,7 +91,11 @@ static bool driver(pappl_system_t *sys, const char *name, const char *uri,
   d->kind = PAPPL_KIND_LABEL | PAPPL_KIND_ROLL;
   d->ppm = 1; /* Scheduling hint, not a measured device speed. */
   d->num_resolution = 1;
-  d->x_resolution[0] = d->y_resolution[0] = d->x_default = d->y_default = (int)b->config->dpi;
+  /* Advertise the logical layout resolution: the coordinate system clients
+     lay out in. The physical raster geometry (empirical calibration) is
+     exposed separately via a custom attribute below; the two are never
+     conflated. */
+  d->x_resolution[0] = d->y_resolution[0] = d->x_default = d->y_default = (int)b->config->logical_dpi;
   d->raster_types = PAPPL_PWG_RASTER_TYPE_SGRAY_8 | PAPPL_PWG_RASTER_TYPE_BLACK_8;
   d->force_raster_type = PAPPL_PWG_RASTER_TYPE_SGRAY_8;
   d->color_supported = d->color_default = PAPPL_COLOR_MODE_MONOCHROME;
@@ -116,6 +120,10 @@ static bool driver(pappl_system_t *sys, const char *name, const char *uri,
   ippAddBoolean(*attrs,IPP_TAG_PRINTER,"page-ranges-supported",false);
   ippAddInteger(*attrs,IPP_TAG_PRINTER,IPP_TAG_ENUM,"orientation-requested-supported",IPP_ORIENT_NONE);
   ippAddString(*attrs,IPP_TAG_PRINTER,IPP_TAG_KEYWORD,"print-scaling-supported",NULL,"none");
+  /* Empirical physical raster geometry (feed x cross-tape DPI), exposed so
+     clients can observe the calibration. Estimates, not specifications. */
+  ippAddResolution(*attrs,IPP_TAG_PRINTER,"letratag-physical-resolution",IPP_RES_PER_INCH,
+                   (int)(b->config->feed_dpi + 0.5),(int)(b->config->cross_dpi + 0.5));
   return true;
 }
 

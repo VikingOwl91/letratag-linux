@@ -35,9 +35,14 @@ height is tape width. The portrait dimensions in the IPP media model are
 reversed: `x-dimension=1200`, `y-dimension=5000` in 1/100 mm. The raster path
 rotates the portrait page without changing the content's proportions.
 
-Direct PDF input is rasterized in Rust at the current 160 dpi software layout
-resolution (`geometry::RESOLUTION_DPI`). This is not a guarantee of physical
-dot pitch. The centered 30 active cross-tape rows remain 30 pixels high.
+Direct PDF input is rendered directly at the physical raster resolution of
+the calibration profile (`geometry::CalibrationProfile`): a 50 x 12 mm page
+renders to 620 feed columns x 76 cross-tape pixels at the default profile
+(~315 DPI feed, ~160 DPI cross-tape; empirical estimates, not
+specifications — see [calibration.md](calibration.md)). Documents are laid
+out in the logical 200 x 200 DPI coordinate system; the resolution conversion
+happens once, at the rendering boundary, with no resampling of rasterized
+content. The centered 30 active cross-tape rows remain 30 pixels high.
 White page margins outside the printhead frame are removed without shortening
 the feed columns. Nonwhite margin content is rejected. The full 12 mm is not
 shrunk to 30 pixels with a corresponding reduction in label length.

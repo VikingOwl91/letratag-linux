@@ -59,3 +59,21 @@ No version bump, tag, publication or release was made.
   identical to the BlueZ backend. Decision: retain both backends, BlueZ
   remains the default. See
   [hardware acceptance](docs/evidence/btleplug-hardware-acceptance-2026-10-21.md).
+
+### Rendering, 2026-10-21 (unreleased)
+
+* Implement calibrated 200-DPI logical rendering: a logical 200 x 200 DPI
+  layout coordinate system (advertised to IPP clients) mapped to an
+  independently configurable physical calibration profile (default
+  `LT200B_2026_10_21`: ~315 DPI feed x ~160 DPI cross-tape; empirical
+  estimates, not specifications). PDFs render directly at the physical
+  raster resolution; the media check uses the physical feed pitch; the
+  physical geometry is exposed as the `letratag-physical-resolution` printer
+  attribute. See [architecture](docs/rendering-architecture-200dpi.md) and
+  [calibration](docs/calibration.md).
+* The original 2026-10-20 HELLO LINUX text-width measurement (~24.3 mm)
+  was corrected to 12.3 mm; the historical 160-to-315 transition is no
+  longer treated as established.
+* Retained HELLO LINUX and RAW diagnostic fixtures remain byte-exact;
+  PNG CLI path unchanged. The v0.3.0 dimensional-accuracy NO-GO stands
+  pending hardware validation.

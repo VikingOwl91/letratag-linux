@@ -160,6 +160,35 @@ backends; BlueZ remains the default**. Evidence:
 [hardware acceptance and decision](evidence/btleplug-hardware-acceptance-2026-10-21.md).
 No DPI, protocol or rendering change; no release, tag or publication.
 
+### Addendum 2026-10-21 (calibrated 200-DPI logical rendering)
+
+The original 2026-10-20 HELLO LINUX text-width measurement (~24.3 mm) was
+corrected by the operator to 12.3 mm, consistent with all subsequent prints
+across the Python/Bleak prototype and both Rust BLE backends. The pipeline
+now separates a logical 200 x 200 DPI layout coordinate system (advertised
+to IPP clients; exposed as `printer-resolution-supported = 200dpi`) from the
+empirical physical raster geometry in a named, independently configurable
+`CalibrationProfile` (default `LT200B_2026_10_21`: feed 315 / cross 160 DPI;
+exposed to clients as the `letratag-physical-resolution` printer attribute).
+PDFs render directly at the physical raster resolution (`pdftoppm
+-scale-to-x/-scale-to-y`, exact anisotropic output, no resampling); the media
+check uses the physical feed pitch; page rotation 90/270 is rejected with an
+actionable error (Poppler distorts anisotropically scaled rotated pages).
+`/Rotate 180` renders correctly. The PNG CLI path is unchanged
+(physical-raster tool); the retained HELLO LINUX and RAW diagnostic fixtures
+are byte-exact (transport crate `payload_preservation` tests untouched).
+
+Gates: default workspace 90 + all-features 124 tests passed (12 new
+geometry unit tests, 7 new document-path tests, 9 geometry integration
+tests); rustfmt and clippy `-D warnings` clean; Direct IPP and PDF-only IPP
+suites updated to the new physical geometry (50 mm -> 620 columns; 63.5 mm
+-> 788 columns) and passing; forensic decoder and CUPS geometry controls
+passing; documentation links pass. The calibration diagnostic
+(`examples/calibration-label.rs --check`) verifies a 110 mm label with
+10/20/40/50/100 mm reference lines offline. The v0.3.0
+dimensional-accuracy NO-GO stands pending hardware validation
+(docs/calibration.md). No release, tag or publication.
+
 ## Historical verification record begins, 2026-10-18
 
 At that date the hardware-independent PDF-first candidate passed the build,

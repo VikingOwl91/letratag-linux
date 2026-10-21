@@ -5,7 +5,11 @@
 
 /* Rust owns every opaque pointer. C borrows app until lt_serve returns. */
 typedef struct {
-  uint32_t dpi, media_width, min_length, max_length, default_length;
+  /* Advertised logical layout resolution (not the native raster geometry). */
+  uint32_t logical_dpi;
+  /* Empirical physical raster calibration (feed/cross-tape DPI). */
+  double feed_dpi, cross_dpi;
+  uint32_t media_width, min_length, max_length, default_length;
   size_t max_job_bytes;
   const char *model;
 } lt_config;

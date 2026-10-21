@@ -1,3 +1,4 @@
+use crate::geometry::CalibrationProfile;
 use crate::{document, engine::Engine, geometry};
 use letratag_protocol::{Profile, Raster};
 use letratag_transport::{ChunkMode, MockTransport};
@@ -63,6 +64,7 @@ pub struct App {
     runtime: tokio::runtime::Runtime,
     transport: TransportKind,
     profile: Profile,
+    calibration: CalibrationProfile,
 }
 
 impl App {
@@ -70,6 +72,7 @@ impl App {
         engine: Engine,
         transport: TransportKind,
         profile: Profile,
+        calibration: CalibrationProfile,
     ) -> std::io::Result<Self> {
         Ok(Self {
             engine: Mutex::new(engine),
@@ -79,6 +82,7 @@ impl App {
                 .build()?,
             transport,
             profile,
+            calibration,
         })
     }
     fn submit(&self, raster: &Raster) -> c_int {
@@ -186,7 +190,11 @@ impl App {
 
 #[repr(C)]
 struct Config {
-    dpi: u32,
+    /// Advertised logical layout resolution (not the native raster geometry).
+    logical_dpi: u32,
+    /// Empirical physical raster calibration (feed/cross-tape DPI).
+    feed_dpi: f64,
+    cross_dpi: f64,
     media_width: u32,
     min_length: u32,
     max_length: u32,
@@ -212,8 +220,8 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
     let spool = CString::new(spool.as_os_str().as_bytes()).map_err(|_| "invalid spool path")?;
     let model = match &app.transport {
         TransportKind::Mock => CString::new(format!(
-            "DYMO LetraTag 200B MOCK - {}-dpi layout",
-            geometry::RESOLUTION_DPI as u32
+            "DYMO LetraTag 200B MOCK - {}-dpi logical layout",
+            geometry::LOGICAL_DPI as u32
         ))
         .unwrap(),
         TransportKind::Bluez { .. } | TransportKind::Btleplug { .. } => {
@@ -221,7 +229,9 @@ pub fn serve(app: App, spool: &Path, port: u16) -> Result<(), String> {
         }
     };
     let config = Config {
-        dpi: geometry::RESOLUTION_DPI as u32,
+        logical_dpi: geometry::LOGICAL_DPI as u32,
+        feed_dpi: app.calibration.feed_dpi,
+        cross_dpi: app.calibration.cross_dpi,
         media_width: geometry::MEDIA_WIDTH,
         min_length: geometry::MEDIA_MIN_LENGTH,
         max_length: geometry::MEDIA_MAX_LENGTH,
@@ -274,14 +284,21 @@ pub unsafe extern "C" fn lt_rs_pdf(
             return 1;
         }
         let bytes = unsafe { std::slice::from_raw_parts(path.cast::<u8>(), len) };
-        let Ok(raster) = document::pdf(Path::new(OsStr::from_bytes(bytes))) else {
+        let app = unsafe { &*app.cast::<App>() };
+        // Render at the physical raster geometry of the calibration profile.
+        let Ok(raster) =
+            document::pdf_with_calibration(Path::new(OsStr::from_bytes(bytes)), &app.calibration)
+        else {
             return 1;
         };
-        let requested = geometry::media_length_to_dots(media_length);
+        // The media check compares the native raster width against the media
+        // length through the physical feed pitch; the advertised logical
+        // resolution is never used for raster geometry.
+        let requested = app.calibration.media_length_to_feed_columns(media_length);
         if raster.width().abs_diff(requested) > 1 {
             return 1;
         }
-        unsafe { &*app.cast::<App>() }.submit(&raster)
+        app.submit(&raster)
     })
 }
 

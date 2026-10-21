@@ -307,37 +307,32 @@ printhead measured here. S2 lists 200 dpi; historical sources and the template
 research report 160 dpi and anisotropic effects. A tape width of 12 mm is not
 the print height.
 
-The current software layout uses 160 dpi (`geometry::RESOLUTION_DPI`), not a
-verified universal native pitch. The Oct 20 text measurements gave an apparent
-feed value of 158.9 dpi (152 occupied columns / 24.3 mm); 16 occupied rows
-across were reported as 2.25-2.5 mm. The earlier conclusion of isotropic
-160 dpi was stronger than this evidence supports. Later rectangle measurements,
-conditional on reconstructed post-filter pixels, imply about 311-316 dpi feed
-and 164-167 dpi across. Missing hardware payloads and differing measurement
-definitions leave the historical 160-versus-316 feed discrepancy unresolved.
-See the authoritative
-[resolution investigation](evidence/resolution-investigation-2026-10-21.md).
+**2026-10-21 corrected measurement and current model.** The original Oct 20
+text-width measurement (24.3 mm) was erroneous; the corrected width is
+12.3 mm, consistent with every subsequent print across the Python/Bleak
+prototype and both Rust BLE backends. The rendering pipeline now separates a
+**logical 200 × 200 DPI layout** coordinate system (advertised to IPP
+clients) from the **physical raster geometry** in a named, independently
+configurable `CalibrationProfile` (empirical estimates measured 2026-10-21:
+~315 DPI feed, ~160 DPI cross-tape; not manufacturer specifications). PDFs
+render directly at the physical raster resolution; the profile maps
+millimeters to feed columns and cross-tape rows. See
+[rendering architecture](rendering-architecture-200dpi.md) and
+[calibration](calibration.md). The historical investigation records remain in
+[evidence/](evidence/) unchanged, including the superseded 160-dpi-isotropic
+interpretation and the CUPS `pdftopdf` 0.787402 shrink finding (a separate,
+demonstrated software-scaling issue, unrelated to the profile).
 
-That investigation demonstrated a separate software shrink: CUPS `pdftopdf`
-fit an unresolved 63.5-mm custom-media request to a 50-mm page, scaling both
-axes by about 0.787402 before Rust rendering. Direct/mock controls preserve
-the artwork; the offline scaling-none control removes that shrink. These
-controls do not establish historical scheduler-forwarded IPP attributes or
-resolve native pitch. No new firmware mode, anisotropic driver resolution, or
-transport correction follows from them.
-
-At the current layout resolution, 30 rows correspond nominally to 4.76 mm.
+30 rows correspond to 4.7625 mm at the empirical 160 DPI cross-tape pitch.
 The remaining rows of the rendered 12-mm PDF page are discarded only if white.
 Nonwhite content outside the centered band is rejected, not cropped or
-distorted. `document.rs` maps the retained pixels into the 32-row frame without
-resampling feed columns; `Raster::pack_columns` packs them without resizing.
-This is a software geometry contract, not a physical-size guarantee.
+distorted. `document.rs` renders at the physical raster resolution and maps
+the retained pixels into the 32-row frame without resampling feed columns;
+`Raster::pack_columns` packs them without resizing. This is a software
+geometry contract, not a physical-size guarantee; physical accuracy is
+established only by measurement (docs/calibration.md).
 Historical lead-in estimates (including about 3.4 mm beyond blank raster
 columns) are observations of particular labels, not fixed firmware geometry.
-
-Some existing `geometry.rs` comments still describe 160 dpi as measured native
-pitch. Those comments remain unchanged in this documentation-only update and
-are not validated by the investigation.
 
 ## 7. Feed, margins, and completion
 

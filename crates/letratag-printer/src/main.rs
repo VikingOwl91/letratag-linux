@@ -109,6 +109,10 @@ enum Commands {
         pdf: bool,
         #[arg(long)]
         dither: bool,
+        /// Calibration profile override: feed=<dpi>,cross=<dpi> (default:
+        /// the named LT200B 2026-10-21 empirical profile).
+        #[arg(long)]
+        calibration: Option<String>,
     },
     /// Complete a validated job using the mock transport and a private journal.
     Mock {
@@ -121,6 +125,10 @@ enum Commands {
         columns: usize,
         #[arg(long)]
         capture: bool,
+        /// Calibration profile override: feed=<dpi>,cross=<dpi> (default:
+        /// the named LT200B 2026-10-21 empirical profile).
+        #[arg(long)]
+        calibration: Option<String>,
     },
     /// Local PAPPL endpoint. Mock transport by default; real hardware with
     /// --transport bluez or btleplug (explicit operator choice, no implicit
@@ -156,6 +164,10 @@ enum Commands {
         /// write progress, status bytes, timing). Never logs print contents.
         #[arg(long)]
         diagnostics: bool,
+        /// Calibration profile override: feed=<dpi>,cross=<dpi> (default:
+        /// the named LT200B 2026-10-21 empirical profile).
+        #[arg(long)]
+        calibration: Option<String>,
     },
     /// Show Direct IPP guidance and Experimental CUPS settings (informational).
     CupsSettings {
@@ -223,9 +235,10 @@ fn load(
     pdf: bool,
     columns: usize,
     dither: bool,
+    calibration: &geometry::CalibrationProfile,
 ) -> Result<letratag_protocol::Raster, Box<dyn std::error::Error>> {
     if pdf {
-        Ok(document::pdf(input)?)
+        Ok(document::pdf_with_calibration(input, calibration)?)
     } else {
         Ok(letratag_render::render_png(
             &document::bounded_read(input)?,
@@ -235,6 +248,16 @@ fn load(
                 ..Default::default()
             },
         )?)
+    }
+}
+
+/// Resolve an optional `--calibration feed=<dpi>,cross=<dpi>` override.
+fn resolve_calibration(
+    override_text: Option<String>,
+) -> Result<geometry::CalibrationProfile, Box<dyn std::error::Error>> {
+    match override_text {
+        Some(text) => Ok(geometry::parse_calibration_override(&text)?),
+        None => Ok(geometry::DEFAULT_CALIBRATION),
     }
 }
 
@@ -260,8 +283,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             columns,
             pdf,
             dither,
+            calibration,
         } => {
-            let raster = load(&input, pdf, columns, dither)?;
+            let calibration = resolve_calibration(calibration)?;
+            let raster = load(&input, pdf, columns, dither, &calibration)?;
             use std::io::Write;
             use std::os::unix::fs::OpenOptionsExt;
             let mut f = std::fs::OpenOptions::new()
@@ -271,9 +296,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .open(output)?;
             f.write_all(&letratag_render::preview_png(&raster)?)?;
             println!(
-                "preview: {} columns x 32 protocol rows, {} dpi layout",
+                "preview: {} columns x 32 protocol rows, {} dpi logical layout, calibration feed {:.0} / cross {:.0} dpi",
                 raster.width(),
-                geometry::RESOLUTION_DPI as u32
+                geometry::LOGICAL_DPI as u32,
+                calibration.feed_dpi,
+                calibration.cross_dpi
             );
         }
         Commands::Mock {
@@ -282,8 +309,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             pdf,
             columns,
             capture,
+            calibration,
         } => {
-            let raster = load(&input, pdf, columns, false)?;
+            let calibration = resolve_calibration(calibration)?;
+            let raster = load(&input, pdf, columns, false, &calibration)?;
             let mut engine = Engine::new(state, capture)?;
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -308,9 +337,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             chunk_mode,
             max_write,
             diagnostics,
+            calibration,
         } => {
             use letratag_printer::ffi::TransportKind;
             let chunk_mode = resolve_chunk_mode(chunk_mode, max_write)?;
+            let calibration = resolve_calibration(calibration)?;
             let engine = Engine::new(state.clone(), capture)?.with_diagnostics(diagnostics);
             let kind = match transport {
                 TransportChoice::Mock => TransportKind::Mock,
@@ -359,7 +390,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
             }
-            let app = letratag_printer::ffi::App::new(engine, kind, profile.into())?;
+            let app = letratag_printer::ffi::App::new(engine, kind, profile.into(), calibration)?;
             letratag_printer::ffi::serve(app, &spool, port).map_err(std::io::Error::other)?;
         }
         Commands::CupsSettings { port } => {
@@ -399,7 +430,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 return Err("physical sends require explicit acknowledgment; first read docs/hardware-acceptance.md".into());
             }
             let chunk_mode = resolve_chunk_mode(chunk_mode, max_write)?;
-            let raster = load(&input, false, columns, false)?;
+            let raster = load(
+                &input,
+                false,
+                columns,
+                false,
+                &geometry::DEFAULT_CALIBRATION,
+            )?;
             let mut engine = Engine::new(state.clone(), false)?.with_diagnostics(diagnostics);
             let printer_cap =
                 letratag_printer::caps::lookup(&state, &address).map_err(|e| e.to_string())?;

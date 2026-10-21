@@ -144,6 +144,7 @@ pub fn effective_write_limit(
 }
 
 /// Diagnostics label for the configured chunk mode.
+#[cfg(any(feature = "ble", feature = "btleplug"))]
 pub(crate) fn chunk_mode_label(mode: ChunkMode) -> &'static str {
     match mode {
         ChunkMode::Auto => "auto",
@@ -154,6 +155,7 @@ pub(crate) fn chunk_mode_label(mode: ChunkMode) -> &'static str {
 
 /// A manual size above the validated capability (or with no recorded
 /// capability at all) is experimental, not validated.
+#[cfg(any(feature = "ble", feature = "btleplug"))]
 pub(crate) fn experimental(mode: ChunkMode, printer_cap: Option<usize>) -> bool {
     match mode {
         ChunkMode::Manual(value) => printer_cap.is_none_or(|cap| value > cap),

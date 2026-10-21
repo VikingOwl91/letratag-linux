@@ -26,7 +26,7 @@ int main(int argc,char **argv) {
     fclose(f);printf("RECEIVED %zu %016" PRIx64 "\n",n,hash);return 0;
   }
   if(argc!=3)return 2;
-  lt_config config={.dpi=200,.media_width=1200,.min_length=1000,.max_length=20000,
+  lt_config config={.logical_dpi=200,.feed_dpi=315.0,.cross_dpi=160.0,.media_width=1200,.min_length=1000,.max_length=20000,
     .default_length=5000,.max_job_bytes=8*1024*1024,.model="Generic PDF policy test sink"};
   return lt_serve(NULL,&config,argv[1],atoi(argv[2]));
 }

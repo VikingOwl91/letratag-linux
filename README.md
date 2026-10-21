@@ -229,12 +229,21 @@ started automatically.
 * Variable length in the provisional IPP profile: 12 × 10..200 mm, default
   12 × 50 mm. `media-col` describes specific custom lengths. These limits are
   software/test profile values, not measured hardware capabilities.
-* Unchanged 160-dpi **software layout**, 30 active rows out of 32 wire
-  rows. Native pitch, physical margins and the historical approximately160
-  versus316 apparent feed discrepancy are not settled by software tests.
-* PDF: one 12 mm page, at most 200 mm long, with a centered 30-row
-  printable area. Nonwhite content outside this area causes an error.
-  No silent cropping, stretching, or automatic fit-to-page.
+* Documents are laid out in a **logical 200 × 200 DPI** coordinate system
+  (also the resolution advertised to IPP clients) and rendered directly at
+  the empirical physical raster geometry of the calibration profile
+  (~315 DPI feed × ~160 DPI cross-tape, measured 2026-10-21; estimates, not
+  specifications — see [geometry.rs](crates/letratag-printer/src/geometry.rs)
+  and [calibration.md](docs/calibration.md)). Override with `--calibration
+  feed=<dpi>,cross=<dpi>`.
+* 30 active rows out of 32 wire rows, centered: the printable band is
+  ~4.76 mm tall, below the 12 mm tape width. Nonwhite content outside the
+  band is rejected, never silently cropped.
+* PDF: one 12 mm page, at most 200 mm long, rendered at the physical
+  raster resolution (no resampling, no automatic fit-to-page). Page
+  rotation 90/270 is rejected with an actionable error.
+* The physical calibration is empirical and awaits hardware validation;
+  software tests verify the mapping, never physical dimensional accuracy.
 * IPP accepts PDF only. PWG Raster and URF, including truncated headers and
   incomplete pages, are rejected before any submission. They are not enabled
   until complete-document validation can be demonstrated.
