@@ -102,6 +102,29 @@ new tests cover exact-address matching, stream end, event cap and timeout
 bounding of the discovery wait, and the distinct actionable
 `DeviceNotFound` error.
 
+### Addendum 2026-10-21 (crate READMEs and crates.io publication)
+
+Dedicated README.md files were added for the three library crates
+(commits `0208605`, `234fa00`, `68534e1`). Each README documents the
+actual public API, purpose, installation, examples, features, limitations
+and licensing, and links the main repository. Every README is included as
+crate-level documentation via `#![doc = include_str!("../README.md")]`,
+so each example is a doc-test compiled and run by `cargo test` (4 for
+protocol, 3 for render, 5 for transport in both feature configurations);
+each manifest references the README explicitly (`readme = "README.md"`)
+and `cargo package --list` confirms it is packaged. Gates re-run on the
+final state: default workspace 67 tests plus 12 doc-tests passed,
+all-features 86 tests plus 12 doc-tests passed, zero failed; clippy with
+`-D warnings` clean; rustfmt clean; debug and release builds passed; the
+loopback IPP mock suite passed; license inventory passed.
+
+The three library crates were published to crates.io at 0.1.0 on
+2026-10-21 (operator-approved): `letratag-protocol`, `letratag-render`,
+`letratag-transport`, verified via the crates.io API. `letratag-printer`
+remains unpublished by design. See [publishing.md](publishing.md). The
+temporary publication token was left for the operator to revoke; no
+credentials were committed (`.env` is git-ignored).
+
 ### Addendum 2026-10-21 (end-to-end hardware acceptance through the serve path)
 
 The end-to-end acceptance print PDF → IPP/PAPPL → Rust → protocol → BlueZ →
