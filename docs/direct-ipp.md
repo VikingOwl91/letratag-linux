@@ -16,7 +16,7 @@ pipeline models the printer's empirical physical geometry via the
 ## Build and local setup
 
 These commands assume a source checkout and the native dependencies listed
-in the [README](../README.md#build). There is no automatic package, service,
+in the [README](../README.md#requirements). There is no automatic package, service,
 queue, or Bluetooth-policy installation. `lp`, `lpr`, and `ipptool` are
 CUPS client utilities; their package names vary by distribution. Using those
 clients directly does **not** require running the system CUPS scheduler.

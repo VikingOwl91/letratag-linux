@@ -50,9 +50,17 @@ extent against the commanded columns. It never prints.
 ## Fitting the feed pitch
 
 1. Print **one** calibration label through the Direct IPP path with explicit
-   media (110 mm x 12 mm), only with explicit operator authorization:
-   `lp -h 127.0.0.1:8631 -d letratag -o media=custom_110x12mm ...` or the
-   equivalent `media-col` (x-dimension=1200, y-dimension=11000).
+   media, only with explicit operator authorization. The 110 mm length is
+   not one of the three advertised media keywords, so use the reusable
+   request, which sets a `media-col` with `x-dimension=1200` and
+   `y-dimension=$length` (the length in 1/100 mm):
+   ```sh
+   ipptool -tv -T 20 -d length=11000 -f test-output/calibration-label.pdf \
+     ipp://127.0.0.1:8631/ipp/print examples/print-pdf.test
+   ```
+   The advertised keywords are `custom_default_12x50mm`,
+   `custom_min_12x10mm` and `custom_max_12x200mm`; a media-col is
+   preferable to inventing a custom keyword.
 2. Measure each reference line's ink length between its end ticks
    (calipers, 0.05 mm).
 3. For each length L with measured width W: `feed_dpi = columns(L) / W x 25.4`.

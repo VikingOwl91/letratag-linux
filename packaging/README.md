@@ -23,8 +23,15 @@ AUR submission. It was verified on Arch Linux with `makepkg`:
 phase runs the complete test suite.
 
 * The source is the release asset `letratag-linux-0.3.0.tar`, produced by
-  `scripts/make-release-archive.sh 0.3.0` from the release commit. The
-  archive is content-only: it excludes `packaging/arch/` (the recipe
+  `scripts/make-release-archive.sh 0.3.0` from the release commit and
+  attached to the GitHub release. The recipe names the archive as a local
+  file, so it has to be present in the build directory before `makepkg` runs:
+  ```sh
+  cd packaging/arch
+  curl -L -O https://github.com/VikingOwl91/letratag-linux/releases/download/v0.3.0/letratag-linux-0.3.0.tar
+  makepkg --verifysource
+  ```
+  The archive is content-only: it excludes `packaging/arch/` (the recipe
   references the archive by checksum) and carries no commit id or
   timestamps, so the checksum in the recipe stays valid.
 * The recipe pins the upstream PAPPL 1.4.9 release tarball by SHA256 and

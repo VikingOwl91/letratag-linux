@@ -13,8 +13,10 @@ address. No firmware update, controller reset or undocumented persistent
 setting is permitted.
 
 First physical output was confirmed on 2026-10-20 (attempt 7). Direct IPP
-produced a readable 50 × 12-mm label on 2026-10-21, without ruler measurements.
-That is readable-output acceptance, not dimensional acceptance. Existing
+produced a readable 50 × 12-mm label on 2026-10-21, without ruler
+measurements. That is readable-output acceptance; the dimensional check of
+the calibrated path followed the same day and is recorded in the
+[validation evidence](evidence/hardware-validation-2026-10-21.md). Existing
 forensic evidence records mock-only direct IPP controls for both 50 × 12 mm
 (`media-col` 1200 × 5000) and 63.5 × 12 mm (1200 × 6350), producing 315 and
 400 columns respectively. The 63.5-mm direct path has no physical acceptance.
@@ -502,6 +504,10 @@ actual hardware payload bytes were not retained. This experiment does not
 establish variable feed stepping. The older apparent feed-pitch discrepancy
 remains unresolved. See the independent evidence record and its limits:
 [evidence/resolution-investigation-2026-10-21.md](evidence/resolution-investigation-2026-10-21.md).
+(Superseded later on 2026-10-21: the feed pitch was resolved by the
+corrected 12.3 mm text width and the calibration of the physical raster
+model, see [calibration.md](calibration.md) and the
+[validation evidence](evidence/hardware-validation-2026-10-21.md).)
 No rendering, protocol, or transport change was made. No additional
 physical printing is authorized. Verify post-filter geometry and resolved
 media dimensions against a mock before considering production changes.

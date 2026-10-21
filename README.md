@@ -1,283 +1,275 @@
 # letratag-linux
 
-Standalone Rust driver for the DYMO LetraTag 200B on Linux.
-**Direct IPP is the recommended/default printing workflow.** PAPPL provides
-the local IPP server; BlueZ is accessed over D-Bus. The optional system
-[CUPS integration is Experimental](docs/cups-experimental.md).
-No Python runtime, DYMO app, HomeOps, or Snipe-IT dependency.
+Native Linux driver for the **DYMO LetraTag 200B** label printer. Render a
+PDF label, print it over Bluetooth Low Energy, and expose the printer to any
+IPP client.
 
-**Development status: first physical print achieved and operator-confirmed
-(2026-10-20, see [verification.md](docs/verification.md) and
-[hardware-acceptance.md](docs/hardware-acceptance.md)).** The default IPP
-destination is deliberately an explicitly named **mock destination**; the
-BlueZ transport is wired into the same serve path as an explicit,
-operator-selected option (`--transport bluez`). The rendering pipeline uses
-a logical 200 x 200 DPI layout system mapped to the physical raster
-geometry of the device (315 x 160 DPI, empirically calibrated and
-physically validated for reference ink lengths from 10 mm to 100 mm, see
-[calibration.md](docs/calibration.md) and the
-[validation evidence](docs/evidence/hardware-validation-2026-10-21.md)).
-That validation covers one device and one label; it is not a universal
-dimensional-accuracy guarantee. The completion policy stays conservative:
-the printer reports success even with the lid open, so no job is ever
-auto-confirmed as physically printed. This is not a production printer
-driver. See [verification.md](docs/verification.md) for the actual test
-status.
+**Latest release: [v0.3.0](https://github.com/VikingOwl91/letratag-linux/releases/tag/v0.3.0),
+2026-10-21.**
 
-## Architecture
+The recommended way to print is **Direct IPP**. `letratag-printer serve` runs
+a loopback-only IPP server, and `lp`, `lpr` or `ipptool` submit a PDF to it.
+No system CUPS scheduler, queue registration or default-printer change is
+needed. The optional system CUPS integration is
+[Experimental](docs/cups-experimental.md).
 
-```
-Direct IPP client (ipptool / lp -h / lpr -H)
-          ↓
-PAPPL: IPP, queue, bounded complete PDF spooling
-          ↓ small C ABI
-letratag-printer: validation, job completion, journal, serialization
-          ↓
-letratag-render → letratag-protocol → letratag-transport
-                                      ├─ Mock
-                                      └─ bluer → BlueZ D-Bus (experimental)
-```
+Only the LetraTag 200B has been tested. The project is young: it has printed
+real labels, but it is not a production printer driver, and it never claims
+that a physical label came out of the printer.
 
-Experimental CUPS adds a scheduler/PPD/PDF-filter stage before the same
-PAPPL server. It is not required for the checked Direct IPP clients. General
-desktop print-dialog support has not been verified; export a suitable PDF
-and use the CLI workflow below.
+## Features
 
-* `letratag-protocol`: no Bluetooth/CUPS dependency, two source-backed
-  profiles, validated headers/status packets, 32-row wire format.
-* `letratag-render`: bounded PNG/grayscale input, proportional scaling,
-  thresholding or Bayer dithering, pixel-exact PNG previews.
-* `letratag-transport`: the same asynchronous interface for mock and
-  BlueZ, timeouts, UUID/GATT checks, no uncontrolled retries.
-* `letratag-printer`: optional PAPPL adapter, PDF through a resource-limited
-  qpdf check and Poppler subprocess, full page validation before any transmission attempt.
+* **Direct IPP printing.** A loopback IPP endpoint that accepts PDF only,
+  one page and one copy per job, with explicit media selection so a
+  submitted physical size is never silently refitted.
+* **Rust implementation.** Protocol, renderer, BLE transports and the IPP
+  service are Rust crates. No Python runtime is needed to build or run the
+  driver.
+* **Two BLE backends.** BlueZ over D-Bus is the default real-hardware
+  backend; an optional [btleplug](docs/btleplug-migration-plan.md) backend is
+  retained as an alternative.
+* **Mock transport.** Every command can run against an in-process mock that
+  records the exact bytes a job would send. Mock is the default everywhere,
+  and no test or example can reach a printer.
+* **Preview.** Render a PNG or a PDF to a wire-raster PNG without printing
+  anything.
+* **Calibrated geometry.** Documents are laid out in a logical 200 x 200 DPI
+  coordinate system and rendered directly at the device's physical raster
+  geometry (315 x 160 DPI), which was physically checked once for reference
+  ink lengths from 10 mm to 100 mm. See
+  [calibration.md](docs/calibration.md).
 
-[ADR](docs/adr/0001-print-system.md) · [Protocol and sources](docs/protocol.md) ·
-[FFI contract](docs/ffi.md) · [Security](docs/security.md) ·
-[Hardware acceptance](docs/hardware-acceptance.md) ·
-[Direct IPP guide](docs/direct-ipp.md) ·
-[Experimental CUPS guide](docs/cups-experimental.md) ·
-[crates.io plan](docs/publishing.md) · [Licenses](docs/legal/README.md)
+## Requirements
 
-## Build
+Hardware printing needs Linux with **BlueZ** and **D-Bus**. The mock path
+needs neither. Build dependencies are listed with Debian/Ubuntu package
+names, as used by CI:
 
-Rust 1.98.1 is pinned in `rust-toolchain.toml`. `Cargo.lock` is part of the
-project. Native build dependencies: a C compiler, make, pkg-config,
-libcups, Avahi, OpenSSL, libpng, libjpeg, zlib. The BLE feature also requires
-the D-Bus development library. PDF support requires Poppler (`pdftoppm`)
-plus qpdf and util-linux (`prlimit`) at runtime. Do not install them system-wide automatically.
+| Purpose | Packages |
+|---|---|
+| Build the Rust code | `build-essential` `pkg-config` `git` |
+| Build the bundled PAPPL | `libcups2-dev` `libavahi-client-dev` `libssl-dev` `libpng-dev` `libjpeg-dev` `zlib1g-dev` `libdbus-1-dev` |
+| IPP clients (`lp`, `lpr`, `ipptool`) | `cups-client` `cups-ipp-utils` |
+| PDF path at runtime | `poppler-utils` (`pdftoppm`) `qpdf` `util-linux` (`prlimit`) |
+| Optional forensic decoder and docs check | `python3` |
 
-Build only the hardware-independent Rust components:
+Rust 1.98.1 is pinned in `rust-toolchain.toml`; 1.98 is the declared
+minimum. `Cargo.lock` is part of the project.
+
+## Installation
+
+### Build from source
+
+The IPP service links against PAPPL 1.4.9 with a separately maintained
+[document-policy patch](patches/README.md), which the project builds into a
+private prefix. Unpatched PAPPL is deliberately rejected at compile time.
 
 ```sh
-cargo build --locked --workspace
-cargo test --locked --workspace
-```
+git clone https://github.com/VikingOwl91/letratag-linux.git
+cd letratag-linux
 
-Build PAPPL locally within the project, without root or a global installation:
-
-```sh
 bash scripts/build-pappl.sh
 export PKG_CONFIG_PATH="$PWD/.research/pappl-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
-cargo build --locked --workspace --all-features
-cargo test --locked --workspace --all-features
-cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
-cargo fmt --all -- --check
+
+cargo build --locked --release --workspace --all-features
 ```
 
-PAPPL 1.4.9 is built at the reviewed commit with the separately maintained
-[document-policy patch](patches/README.md). Unpatched PAPPL is deliberately
-rejected at compile time. The Rust version, Cargo dependency resolution,
-PAPPL revision and patch are pinned; bit-identical binaries across different
-system libraries are not promised. Rust 1.98 is the declared minimum.
+The Rust version, dependency resolution, PAPPL revision and patch are all
+pinned. Bit-identical binaries across different system libraries are not
+promised.
 
-## Quick start: Direct IPP (recommended/default)
+### Arch Linux
 
-After the PAPPL build above, start a private, mock-only endpoint. No system
-CUPS scheduler, queue registration, default-printer change or Bluetooth is
-needed. The `lp`, `lpr` and `ipptool` utilities are CUPS **clients**, and
-libcups remains a native dependency; distribution package splits vary.
+`packaging/arch/PKGBUILD` builds an Arch package from the release source
+archive. It is **not** in the AUR and no AUR submission exists. The recipe
+pins the checksum of the release archive, so fetch that archive into the
+build directory first:
 
 ```sh
-# Terminal 1: explicit mock transport, no physical printing.
-target/debug/letratag-printer serve \
+cd packaging/arch
+curl -L -O https://github.com/VikingOwl91/letratag-linux/releases/download/v0.3.0/letratag-linux-0.3.0.tar
+makepkg --verifysource
+makepkg
+```
+
+`makepkg --verifysource` fails if the archive is missing or does not match
+the pinned SHA256. The recipe builds the patched PAPPL from the pinned
+upstream tarball and links it statically, so the installed package has no
+runtime PAPPL dependency. See [packaging/README.md](packaging/README.md).
+
+A systemd unit template is in `packaging/systemd/`. It is mock-only, it is
+not installed by the project, and it is never started automatically.
+
+## Quick start: a safe first print
+
+The steps below use the mock transport. Nothing can reach a printer, and the
+mock records the bytes a real job would send.
+
+```sh
+# 1. Build (see Installation above for the PAPPL prefix).
+cargo build --locked --release --workspace --all-features
+
+# 2. Start a private, mock-only IPP endpoint. No Bluetooth, no system CUPS.
+target/release/letratag-printer serve \
   --transport mock --profile legacy --capture --port 8631 \
-  --state "$PWD/test-output/direct-journal" \
-  --spool "$PWD/test-output/direct-spool"
+  --state "$PWD/test-output/journal" \
+  --spool "$PWD/test-output/spool"
 ```
 
-From another terminal in the checkout:
+In a second terminal, in the same checkout:
 
 ```sh
-# Query capabilities, then generate one synthetic 50 x 12 mm PDF.
-ipptool -tv -T 5 ipp://127.0.0.1:8631/ipp/print tests/ipp/get-printer.test
+# 3. Make one 50 x 12 mm PDF and check the endpoint's capabilities.
 mkdir -p test-output
 rustc --edition=2024 tests/make-pdf.rs -o test-output/make-pdf
 test-output/make-pdf > test-output/label-50.pdf
+ipptool -tv -T 5 ipp://127.0.0.1:8631/ipp/print tests/ipp/get-printer.test
 
-# Submit once, directly to PAPPL rather than the system scheduler.
+# 4. Submit the label. -h sends it to our endpoint, not to a system queue.
 lp -h 127.0.0.1:8631 -d letratag \
   -o media=custom_default_12x50mm -o print-scaling=none \
   test-output/label-50.pdf
+
+# 5. The mock recorded the exact wire payload, a PNG preview and the
+#    journal entry for the job:
+ls test-output/journal/
 ```
 
-Keep the explicit server and destination. Omitting `-h` can route the job
-through system CUPS instead. For explicit dimensions or other supported
-lengths, use the reusable request and a matching one-page PDF:
+Keep the explicit server and destination: omitting `-h` can route the job
+through a system CUPS scheduler instead. `print-scaling=none` is the only
+supported scaling mode; the media keyword must match the PDF page.
+
+Other lengths use the same `media-col` mechanism (see the
+[Direct IPP guide](docs/direct-ipp.md)), and the reusable IPP request
+`examples/print-pdf.test` submits a PDF with an explicit length.
+
+To look at a rendering without any server, use `preview`:
 
 ```sh
-ipptool -tv -T 20 -d length=5000 -f test-output/label-50.pdf \
-  ipp://127.0.0.1:8631/ipp/print examples/print-pdf.test
+cargo run --locked -p letratag-printer -- preview input.png preview.png --columns 400
+cargo run --locked -p letratag-printer -- preview label.pdf preview-pdf.png --pdf
 ```
 
-This is an **alternative** submission, not an additional step for the same
-label. Submission success is not physical completion. The
-[Direct IPP guide](docs/direct-ipp.md) covers job-state queries, explicit
-63.5-mm media, troubleshooting, installation and evidence limits. The
-software acceptance checks use only isolated mock servers:
+The software acceptance checks use only isolated mock servers:
 
 ```sh
 bash scripts/test-direct-ipp.sh
 bash scripts/test-ipp.sh
 ```
 
-## Preview and mock rendering
+## Printing on real hardware
+
+> **Warning.** The printer reports success even with the lid open, so a
+> successful job does not prove that a label was printed. Every hardware job
+> ends *uncertain* and keeps an inflight journal entry until an operator
+> inspects the output and records a decision. A timeout after the first
+> write may mean that the label was already printed: the journal then blocks
+> further transmissions, even after a restart. **Do not resubmit the job.**
+
+Hardware is always an explicit, per-invocation choice. There is no implicit
+fallback from BlueZ to mock, and a failed hardware job is reported as
+failed, never silently retried:
 
 ```sh
-# Fit a PNG/image proportionally into 400 feed columns and 30 active rows.
-cargo run --locked -p letratag-printer -- preview input.png preview.png --columns 400
-
-# Check 50 × 12 mm PDF geometry (calibrated physical raster) without subsequent fit-to-page.
-cargo run --locked -p letratag-printer -- preview label.pdf preview-pdf.png --pdf
-
-```
-
-## Real hardware over BlueZ
-
-Only after separate operator approval, the same Direct IPP serve path can
-target the physical printer. This is an explicit
-operator choice per invocation; there is never an implicit fallback from
-BlueZ to mock, and a BlueZ job that fails is reported as failed/aborted,
-never silently retried:
-
-```sh
-cargo run --locked -p letratag-printer --features pappl,ble -- serve \
+target/release/letratag-printer serve \
+  --transport bluez --address '90:E5:B1:49:DA:AE' \
+  --profile legacy --chunk-mode auto --diagnostics \
   --state "$PWD/test-output/hw-journal" --spool "$PWD/test-output/hw-spool" \
-  --port 8631 --transport bluez --address '90:E5:B1:49:DA:AE' \
-  --profile legacy --chunk-mode auto --diagnostics
+  --port 8631
 ```
 
-Requirements and behavior:
-
-* The process user needs access to the system BlueZ D-Bus API (the same
-  permission `bluetoothctl` uses). No pairing is required; the connection
-  uses the explicit address. No persistent Bluetooth configuration is
-  changed.
+* The process user needs access to the system BlueZ D-Bus API, the same
+  permission `bluetoothctl` uses. No pairing is required and no persistent
+  Bluetooth configuration is changed.
+* `--transport btleplug` selects the alternative btleplug backend. It uses
+  the same wire protocol, write mode and chunking, and was accepted on
+  hardware; BlueZ stays the default.
+* `--profile legacy` is the profile that was validated on hardware. The
+  profile is never switched automatically.
 * Jobs are serialized: one transmission at a time, guarded by the engine
-  mutex and the journal file lock.
-* BLE write size is selected per `--chunk-mode` (see
-  [protocol.md](docs/protocol.md) section 4): `auto` uses a
-  hardware-validated capability recorded in `<state>/printer-caps.conf`
-  and otherwise falls back to the conservative 20-byte limit; `safe`
-  forces the conservative limit; `manual` takes `--max-write <bytes>`
-  (experimental above the validated capability).
-* Completion stays conservative: transport completion is not proof of a
-  physical label. Every hardware job ends uncertain and keeps an inflight
-  journal entry until the operator inspects the output and records a
-  decision. See [hardware-acceptance.md](docs/hardware-acceptance.md).
-* `--diagnostics` prints a content-free transport parameters block
-  (write mode, negotiated ATT MTU, usable GATT value, validated cap,
-  effective write size, chunk mode) plus per-write progress, raw status
-  bytes and timing. It never logs print contents.
+  mutex and the journal lock.
+* `--chunk-mode auto` uses a hardware-validated write size recorded per
+  device in `<state>/printer-caps.conf` and otherwise falls back to the
+  conservative 20-byte limit. `safe` forces the conservative limit and
+  `manual` takes `--max-write <bytes>`.
+* `--diagnostics` prints a content-free transport parameter block and
+  per-write progress. It never logs print contents.
 
-New state/spool directories are created with private permissions. Existing
-directories must have mode 0700. Do not point them at `/etc/cups` or existing
-CUPS spool directories. Preview does not overwrite existing files.
+New state and spool directories are created with private permissions;
+existing ones must be mode 0700. Do not point them at `/etc/cups` or an
+existing CUPS spool directory.
 
-With the `ble` feature, read-only hardware diagnostics are available (no
-print job is sent): a full GATT dump, state reads of the status
-characteristics and an RX/AUX notification watch:
+Read-only hardware inspection is available separately and never sends a
+print job:
 
 ```sh
-cargo run --locked -p letratag-printer --features ble -- hardware-info \
-  --address '<device-address>' --watch 15
+target/release/letratag-printer hardware-info --address '<device-address>' --watch 15
 ```
 
-See [hardware acceptance](docs/hardware-acceptance.md) for the physical
-print procedure and its preconditions.
+The full physical print procedure, its preconditions and the journal
+handling rules are in the
+[hardware acceptance guide](docs/hardware-acceptance.md).
 
-## CUPS integration (Experimental, optional)
+## Known limitations
 
-The existing CUPS integration remains available, but is not the default.
-The confirmed `pdftopdf` media-fitting defect can shrink artwork on both
-axes before PAPPL sees it. A submitted custom-media keyword does not prove
-the selected or forwarded dimensions. The historical readable CUPS label
-does not establish dimensional accuracy. An offline scaling-none control
-is not a complete custom-media or hardware fix.
+* **Direct IPP is the recommended path.** The CUPS integration is
+  Experimental: the `pdftopdf` filter can fit artwork into the wrong page
+  before the printer sees it, and a submitted media keyword does not prove
+  the size that was actually used.
+* **One tested printer model.** Only the DYMO LetraTag 200B. No other
+  model and no other operating system is claimed.
+* **No universal dimensional accuracy.** The physical calibration was
+  checked once, on one device, for reference ink lengths from 10 mm to
+  100 mm, with the measurements recorded to the nearest millimetre. That is
+  not a guarantee for other devices, media or input paths.
+* **No automatic confirmation of a physical print.** Every hardware job
+  ends uncertain, by design.
+* **No automatic cutting guarantee.** The printer's own lead-in and
+  lead-out are outside the calibration.
+* **PDF only over IPP.** PWG Raster and URF are rejected before any
+  submission. The CLI renderer also accepts PNG.
+* **One page, one copy, monochrome.** A multi-page PDF is rejected; split it
+  into separate jobs.
+* **Page rotation 90° and 270° is rejected** with an actionable error.
+  Export the page pre-rotated.
+* **The printable band is 4.76 mm high** inside the 12 mm tape width.
+  Content outside the band is rejected, never cropped.
 
-See the [Experimental CUPS guide](docs/cups-experimental.md) for preserved
-setup commands, tested configurations, limitations and troubleshooting, and
-the [forensic reference](docs/evidence/resolution-investigation-2026-10-21.md)
-for the exact evidence. The existing informational command is retained:
+## Documentation
 
-```sh
-cargo run --locked -p letratag-printer -- cups-settings --port 8631
-```
+| Topic | Document |
+|---|---|
+| User guide: installing, serving, media, troubleshooting | [docs/direct-ipp.md](docs/direct-ipp.md) |
+| Experimental CUPS integration and its known defects | [docs/cups-experimental.md](docs/cups-experimental.md) |
+| Physical print procedure and journal handling | [docs/hardware-acceptance.md](docs/hardware-acceptance.md) |
+| Calibrating the physical geometry | [docs/calibration.md](docs/calibration.md) |
+| Security model and operational safety | [docs/security.md](docs/security.md) |
+| Wire protocol, profiles and sources | [docs/protocol.md](docs/protocol.md) |
+| Rendering architecture and the calibration model | [docs/rendering-architecture-200dpi.md](docs/rendering-architecture-200dpi.md) |
+| C/Rust boundary contract | [docs/ffi.md](docs/ffi.md) |
+| Print system decision record | [docs/adr/0001-print-system.md](docs/adr/0001-print-system.md) |
+| Template and PDF notes for existing integrations | [docs/pdf-integration.md](docs/pdf-integration.md) |
+| Test status and the dated verification record | [docs/verification.md](docs/verification.md) |
+| Release notes and changelog | [docs/releases/v0.3.0.md](docs/releases/v0.3.0.md), [CHANGELOG.md](CHANGELOG.md) |
+| Packaging and publication | [packaging/README.md](packaging/README.md), [docs/publishing.md](docs/publishing.md) |
+| Licenses, attribution and protocol provenance | [docs/legal/README.md](docs/legal/README.md) |
 
-A systemd template is in `packaging/systemd/`; it is not installed or
-started automatically.
+The `docs/evidence/` directory keeps the dated investigation and acceptance
+records, including the
+[hardware validation](docs/evidence/hardware-validation-2026-10-21.md) and
+the [geometry forensics](docs/evidence/resolution-investigation-2026-10-21.md).
+They are the record of what was measured, including measurements that were
+later corrected.
 
-## Formats and limits
+## Contributing, license and attribution
 
-* Monochrome, one page and one copy per job. Use separate jobs rather than
-  uncontrolled multiple prints.
-* Variable length in the provisional IPP profile: 12 × 10..200 mm, default
-  12 × 50 mm. `media-col` describes specific custom lengths. These limits are
-  software/test profile values, not measured hardware capabilities.
-* Documents are laid out in a **logical 200 × 200 DPI** coordinate system
-  and rendered directly at the empirical physical raster geometry of the
-  calibration profile (~315 DPI feed × ~160 DPI cross-tape, measured
-  2026-10-21; estimates, not specifications — see
-  [geometry.rs](crates/letratag-printer/src/geometry.rs) and
-  [calibration.md](docs/calibration.md)). Override with `--calibration
-  feed=<dpi>,cross=<dpi>`. IPP clients see the physical geometry in the
-  standard `printer-resolution` attribute (the resolution at which the
-  printer prints) and the logical layout resolution in the custom
-  `letratag-logical-resolution` attribute.
-* 30 active rows out of 32 wire rows, centered: the printable band is
-  ~4.76 mm tall, below the 12 mm tape width. Nonwhite content outside the
-  band is rejected, never silently cropped.
-* PDF: one 12 mm page, at most 200 mm long, rendered at the physical
-  raster resolution (no resampling, no automatic fit-to-page). Page
-  rotation 90/270 is rejected with an actionable error.
-* The physical calibration is empirical. It was physically validated once,
-  for reference ink lengths from 10 mm to 100 mm on one device
-  (2026-10-21); software tests verify the mapping, never physical
-  dimensional accuracy on other devices or media.
-* IPP accepts PDF only. PWG Raster and URF, including truncated headers and
-  incomplete pages, are rejected before any submission. They are not enabled
-  until complete-document validation can be demonstrated.
-* PNG is supported by the CLI renderer, not the IPP endpoint. Images are fitted
-  proportionally. PDF uses a separate geometry-preserving page path.
-* No confirmed automatic cutting, no firmware updates, no persistent device
-  changes, and no guarantee of QR code readability.
+The project has no contribution guide yet. For design questions, read the
+[decision record](docs/adr/0001-print-system.md); for defects and questions,
+use the repository's issue tracker. Please keep the historical evidence
+documents intact: they are the record of the measurements behind the current
+model.
 
-A timeout after the first write may mean that printing has already occurred.
-The persistent inflight entry then blocks further transmissions, even after
-a restart. Do not simply resubmit the job. See the procedure in
-[security.md](docs/security.md).
-
-## Future consumers
-
-The recommended path `label PDF → Direct IPP/PAPPL → Rust → BlueZ` contains no
-Snipe-IT-specific logic. Notes on the existing 50 × 12 mm template are in
-[pdf-integration.md](docs/pdf-integration.md). The reference project was not
-modified. For now, a nine-page PDF must be split into individual pages/jobs;
-it will not be printed partially.
-
-## License
-
-MIT for this project. Reference notices and license texts are in `docs/legal/`.
-PAPPL and Poppler retain their own licenses. No AGPL Python code was ported;
-Python is not required for the core build, IPP suites or driver runtime;
-the optional forensic decoder/control tools use Python 3.
+Project code is MIT licensed, see [LICENSE](LICENSE). PAPPL and Poppler keep
+their own licenses, and the protocol work credits its sources in
+[docs/legal/README.md](docs/legal/README.md). No DYMO code or assets are
+redistributed.

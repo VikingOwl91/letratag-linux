@@ -13,7 +13,7 @@ runs resource-limited `qpdf --check` (warnings also reject), requires a qpdf
 page count of exactly one, and only then renders with resource-limited Poppler.
 The complete rendered document must
 contain exactly one supported page, with matching media length and no dark
-pixels outside the provisional head area. No transport is constructed until
+pixels outside the printable band. No transport is constructed until
 all preflight checks pass. This is a defined conservative acceptance policy,
 not a formal PDF correctness proof or a parser-vulnerability guarantee.
 

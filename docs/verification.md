@@ -100,7 +100,14 @@ paths have no diff from the baseline. Tests used scratch-only builds and
 explicit mock loopback destinations; no BLE connection, physical print,
 system queue change, crate publication or release occurred.
 
-### Release acceptance v0.3.0, 2026-10-21: software PASS, dimensional accuracy FAIL (NO-GO)
+### Release acceptance v0.3.0, 2026-10-21: software PASS, dimensional accuracy FAIL (NO-GO, historical)
+
+> Historical record, superseded later the same day. The NO-GO below was the
+> release decision at the time. The hardware validation of the calibrated
+> path that followed is recorded in "Addendum 2026-10-21 (hardware
+> validation: dimensional accuracy CONFIRMED)" below, and the measurement
+> that motivated the NO-GO, the ~24.3 mm text width, was later found to be
+> erroneous; the corrected width is 12.3 mm.
 
 Phase 1 gates above were re-run and passed (86 default / 105 all-feature
 tests, formatting, clippy, both IPP suites, forensic decoder, offline CUPS

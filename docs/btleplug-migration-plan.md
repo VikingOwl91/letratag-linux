@@ -2,6 +2,13 @@
 
 Status: plan (pre-implementation), 2026-10-21.
 
+**Outcome, 2026-10-21:** the plan was implemented and accepted on hardware.
+Both backends are retained, BlueZ stays the default real-hardware backend,
+and the mock transport is unchanged. See the
+[backend comparison](evidence/backend-comparison-2026-10-21.md) and the
+[hardware acceptance record](evidence/btleplug-hardware-acceptance-2026-10-21.md).
+The plan text below is kept as written.
+
 ## Objective
 
 Add an established `btleplug` BLE transport backend alongside the existing

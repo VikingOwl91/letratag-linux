@@ -1,11 +1,16 @@
 # Changelog
 
-## v0.3.0 (release candidate, not published)
+## v0.3.0 (2026-10-21)
 
-Prepared 2026-10-21 for operator-controlled publication. No tag, no
-publication and no version bump have been made; see
-[release notes](docs/releases/v0.3.0.md) and the
+Released 2026-10-21 from commit `47cc0c3`; the signed `v0.3.0` tag and the
+source archive `letratag-linux-0.3.0.tar` are attached to the
+[GitHub release](https://github.com/VikingOwl91/letratag-linux/releases/tag/v0.3.0).
+See the [release notes](docs/releases/v0.3.0.md) and the
 [release audit](docs/evidence/release-audit-v0.3.0-2026-10-21.md).
+
+The dated subsections below record the state of the work on 2026-10-21 and
+are kept as written. Two of them describe conclusions that were superseded
+later the same day; each carries a pointer to the later record.
 
 ### Documentation, 2026-10-21
 
@@ -32,7 +37,20 @@ documentation. Rendering, protocol, transport, runtime configuration and
 versions are unchanged. No release or new physical acceptance is claimed.
 Historical evidence and the authoritative forensic reference are unchanged.
 
-### Release acceptance v0.3.0, 2026-10-21 (not released)
+> Superseded later on 2026-10-21: the apparent ~160 versus ~316-dpi feed
+> conflict named above was resolved by the corrected 12.3 mm text width and
+> the calibration of the physical raster model (315 DPI feed, 160 DPI
+> cross-tape). See the Rendering section below and the
+> [validation evidence](docs/evidence/hardware-validation-2026-10-21.md).
+
+### Release acceptance v0.3.0, 2026-10-21 (historical: superseded the same day)
+
+> Historical record. The NO-GO below was the release decision at the time.
+> It was superseded later on 2026-10-21 by the hardware validation of the
+> calibrated path; see "Hardware validation" in the Rendering section and
+> the [validation evidence](docs/evidence/hardware-validation-2026-10-21.md).
+> The measurement that motivated the NO-GO, the ~24.3 mm text width, was
+> later found to be erroneous; the corrected width is 12.3 mm.
 
 Software gates passed (86 default / 105 all-feature tests, formatting,
 Clippy, Direct IPP and PDF-only IPP suites, forensic decoder, offline CUPS
@@ -47,7 +65,7 @@ claims. Evidence:
 [release readiness report](docs/evidence/release-readiness-v0.3.0-2026-10-21.md).
 No version bump, tag, publication or release was made.
 
-### BLE transport, 2026-10-21 (unreleased)
+### BLE transport, 2026-10-21
 
 * Add a selectable [btleplug](docs/btleplug-migration-plan.md) BLE backend
   (pinned 0.11.8) behind the existing transport abstraction, with a
@@ -65,7 +83,7 @@ No version bump, tag, publication or release was made.
   remains the default. See
   [hardware acceptance](docs/evidence/btleplug-hardware-acceptance-2026-10-21.md).
 
-### Rendering, 2026-10-21 (unreleased)
+### Rendering, 2026-10-21
 
 * Implement calibrated 200-DPI logical rendering: a logical 200 x 200 DPI
   layout coordinate system (exposed to IPP clients as the custom
@@ -95,7 +113,7 @@ No version bump, tag, publication or release was made.
   The v0.3.0 dimensional-accuracy NO-GO can be reconsidered on this
   evidence; the operator decides.
 
-### IPP advertisement, 2026-10-21 (unreleased)
+### IPP advertisement, 2026-10-21
 
 * The standard `printer-resolution` attribute now carries the physical raster
   geometry (315 x 160 dpi) of the calibration profile. RFC 8011 defines that
