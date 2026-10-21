@@ -29,7 +29,7 @@ source=(
   "https://github.com/michaelrsweet/pappl/releases/download/v1.4.9/pappl-1.4.9.tar.gz"
 )
 sha256sums=(
-  '28c6b36431b27edf8d84ca417aed155e89b40cc9f0cb1720c3603b293fad705d'
+  'b322fab314149a04e1ba75892fa7b59f0c69febea81d2ebb0da477ac2d095f16'
   '50fec863a28a3c39af639de29d58bf8cefdafa258b66e3c0dfbe2097801dc9db'
 )
 
